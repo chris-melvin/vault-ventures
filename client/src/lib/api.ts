@@ -8,6 +8,9 @@ import type {
   BlackjackState,
   BaccaratResult,
   BaccaratBetType,
+  UTHState,
+  UTHAction,
+  GameHistoryEntry,
 } from '@shared/types';
 
 // Initialize token from localStorage immediately so it's available before any effects run
@@ -123,5 +126,25 @@ export const baccarat = {
     request<BaccaratResult>('/baccarat/deal', {
       method: 'POST',
       body: JSON.stringify({ amount_cents, bet_type }),
+    }),
+};
+
+// History
+export const history = {
+  list: (game_type: string, limit = 20) =>
+    request<GameHistoryEntry[]>(`/history/${game_type}?limit=${limit}`),
+};
+
+// Ultimate Texas Hold'em
+export const uth = {
+  deal: (ante_cents: number, trips_cents?: number) =>
+    request<UTHState>('/uth/deal', {
+      method: 'POST',
+      body: JSON.stringify({ ante_cents, trips_cents }),
+    }),
+  action: (session_id: string, action: UTHAction) =>
+    request<UTHState>('/uth/action', {
+      method: 'POST',
+      body: JSON.stringify({ session_id, action }),
     }),
 };

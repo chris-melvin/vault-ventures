@@ -1,66 +1,54 @@
 import { useGameStore } from '../../stores/useGameStore';
-import { CHIP_VALUES, CHIP_COLORS, formatCents, formatChipLabel } from '../../lib/constants';
+import { formatCents } from '../../lib/constants';
+import ChipSelector from './ChipSelector';
+import BettingCircle from './BettingCircle';
 
 interface BetControlsProps {
   onAction: () => void;
   actionLabel: string;
   disabled?: boolean;
-  minBet?: number;
-  maxBet?: number;
+  showBettingCircle?: boolean;
 }
 
 export default function BetControls({
   onAction,
   actionLabel,
   disabled = false,
-  minBet = 100,
-  maxBet = 10000000,
+  showBettingCircle = false,
 }: BetControlsProps) {
-  const { currentBet, setBet, balance_cents } = useGameStore();
-
-  const selectChip = (value: number) => {
-    if (value <= balance_cents && value >= minBet && value <= maxBet) {
-      setBet(value);
-    }
-  };
+  const { currentBet, chipStack, addChip, removeLastChip, clearBet, balance_cents } = useGameStore();
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-lg">
-      <div className="flex items-center gap-3">
-        {CHIP_VALUES.map((value) => {
-          const colors = CHIP_COLORS[value];
-          const isSelected = currentBet === value;
-          const isDisabled = value > balance_cents;
+      {showBettingCircle && (
+        <BettingCircle
+          chips={chipStack}
+          label="Place Bet"
+          onClick={addChip}
+        />
+      )}
 
-          return (
-            <button
-              key={value}
-              onClick={() => selectChip(value)}
-              disabled={isDisabled}
-              className="chip"
-              style={{
-                backgroundColor: colors.bg,
-                borderColor: isSelected ? '#d4af37' : colors.border,
-                color: colors.text,
-                opacity: isDisabled ? 0.3 : 1,
-                transform: isSelected ? 'scale(1.15)' : 'scale(1)',
-                boxShadow: isSelected ? '0 0 15px rgba(212,175,55,0.5)' : 'none',
-              }}
-            >
-              {formatChipLabel(value)}
-            </button>
-          );
-        })}
-      </div>
+      <ChipSelector />
+
+      {chipStack.length > 0 && (
+        <div className="flex items-center gap-3">
+          <button onClick={removeLastChip} className="btn-secondary px-4 py-2 text-sm">
+            UNDO
+          </button>
+          <button onClick={clearBet} className="btn-secondary px-4 py-2 text-sm">
+            CLEAR
+          </button>
+        </div>
+      )}
 
       <div className="text-center">
-        <span className="text-white/50 text-sm">Bet Amount</span>
+        <span className="text-white/50 text-sm">Total Bet</span>
         <div className="text-casino-gold font-bold text-2xl">{formatCents(currentBet)}</div>
       </div>
 
       <button
         onClick={onAction}
-        disabled={disabled || currentBet > balance_cents}
+        disabled={disabled || currentBet === 0 || currentBet > balance_cents}
         className="btn-primary w-full text-lg tracking-wider"
       >
         {actionLabel}

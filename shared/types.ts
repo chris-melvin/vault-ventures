@@ -162,6 +162,86 @@ export interface BaccaratResult extends GameResult {
   winner: BaccaratBetType;
 }
 
+// ============ Ultimate Texas Hold'em ============
+export type UTHPhase = 'preflop' | 'flop' | 'river' | 'showdown';
+export type UTHAction = 'check' | 'bet4x' | 'bet3x' | 'bet2x' | 'bet1x' | 'fold';
+
+export type PokerHandRank =
+  | 'royal_flush' | 'straight_flush' | 'four_of_a_kind'
+  | 'full_house' | 'flush' | 'straight'
+  | 'three_of_a_kind' | 'two_pair' | 'one_pair' | 'high_card';
+
+export interface UTHDealRequest {
+  ante_cents: number;
+  trips_cents?: number;
+}
+
+export interface UTHActionRequest {
+  session_id: string;
+  action: UTHAction;
+}
+
+export interface UTHBetBreakdown {
+  ante_cents: number;
+  blind_cents: number;
+  trips_cents: number;
+  play_cents: number;
+}
+
+export interface UTHState {
+  session_id: string;
+  phase: UTHPhase;
+  player_hand: CardData[];
+  dealer_hand: CardData[];
+  community_cards: CardData[];
+  bets: UTHBetBreakdown;
+  available_actions: UTHAction[];
+  player_hand_rank?: PokerHandRank;
+  player_hand_name?: string;
+  dealer_hand_rank?: PokerHandRank;
+  dealer_hand_name?: string;
+  result?: UTHResult;
+  new_balance_cents: number;
+}
+
+export interface UTHResult {
+  outcome: 'player_wins' | 'dealer_wins' | 'push' | 'fold';
+  dealer_qualifies: boolean;
+  ante_payout_cents: number;
+  blind_payout_cents: number;
+  play_payout_cents: number;
+  trips_payout_cents: number;
+  total_payout_cents: number;
+  new_balance_cents: number;
+}
+
+export const BLIND_PAY_TABLE: Record<string, number> = {
+  royal_flush: 500,
+  straight_flush: 50,
+  four_of_a_kind: 10,
+  full_house: 3,
+  flush: 1.5,
+  straight: 1,
+};
+
+export const TRIPS_PAY_TABLE: Record<string, number> = {
+  royal_flush: 50,
+  straight_flush: 40,
+  four_of_a_kind: 30,
+  full_house: 8,
+  flush: 7,
+  straight: 4,
+  three_of_a_kind: 3,
+};
+
+// ============ Game History ============
+export interface GameHistoryEntry {
+  id: number;
+  game_type: string;
+  result_data: any;
+  timestamp: number;
+}
+
 // ============ Error ============
 export interface ApiError {
   error: string;

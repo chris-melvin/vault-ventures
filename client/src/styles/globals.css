@@ -166,3 +166,22 @@
   box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
   transform: translateY(-4px);
 }
+
+.card-back-pattern {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(212, 175, 55, 0.12) 4px,
+      rgba(212, 175, 55, 0.12) 5px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 4px,
+      rgba(212, 175, 55, 0.12) 4px,
+      rgba(212, 175, 55, 0.12) 5px
+    ),
+    linear-gradient(135deg, #1a2a4a 0%, #2c3e50 50%, #1a2a4a 100%);
+}

@@ -32,8 +32,8 @@ export const SUIT_SYMBOLS: Record<string, string> = {
 export const SUIT_COLORS: Record<string, string> = {
   hearts: '#e74c3c',
   diamonds: '#e74c3c',
-  clubs: '#ffffff',
-  spades: '#ffffff',
+  clubs: '#1a1a2e',
+  spades: '#1a1a2e',
 };
 
 export function formatCents(cents: number): string {

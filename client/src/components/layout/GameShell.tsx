@@ -11,9 +11,9 @@ export default function GameShell({ title, children }: GameShellProps) {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-casino-black flex flex-col">
+    <div className="h-screen bg-casino-black flex flex-col overflow-hidden">
       <Header />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-h-0">
         <div className="max-w-5xl w-full mx-auto px-4 py-4 flex items-center gap-3">
           <button
             onClick={() => navigate('/lobby')}
@@ -25,7 +25,7 @@ export default function GameShell({ title, children }: GameShellProps) {
           </button>
           <h1 className="text-2xl font-bold text-white">{title}</h1>
         </div>
-        <div className="flex-1 flex flex-col items-center px-4 pb-8">
+        <div className="flex-1 flex flex-col items-center px-4 pb-2 min-h-0 overflow-hidden">
           {children}
         </div>
       </div>

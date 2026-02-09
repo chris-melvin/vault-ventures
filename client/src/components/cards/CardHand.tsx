@@ -7,9 +7,13 @@ interface CardHandProps {
   label: string;
   value?: number | null;
   delay?: number;
+  size?: 'sm' | 'md' | 'lg';
+  flipAnimation?: boolean;
 }
 
-export default function CardHand({ cards, label, value, delay = 0 }: CardHandProps) {
+const OVERLAP = { sm: '-space-x-4', md: '-space-x-6', lg: '-space-x-8' };
+
+export default function CardHand({ cards, label, value, delay = 0, size = 'md', flipAnimation = false }: CardHandProps) {
   return (
     <div className="flex flex-col items-center gap-2">
       <div className="flex items-center gap-2">
@@ -22,10 +26,17 @@ export default function CardHand({ cards, label, value, delay = 0 }: CardHandPro
           </span>
         )}
       </div>
-      <div className="flex -space-x-6">
+      <div className={`flex ${OVERLAP[size]}`}>
         <AnimatePresence>
           {cards.map((card, i) => (
-            <Card key={`${card.suit}-${card.rank}-${i}`} card={card} index={i} delay={delay} />
+            <Card
+              key={`${card.suit}-${card.rank}-${i}`}
+              card={card}
+              index={i}
+              delay={delay}
+              size={size}
+              flipAnimation={flipAnimation}
+            />
           ))}
         </AnimatePresence>
       </div>

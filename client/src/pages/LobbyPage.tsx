@@ -41,6 +41,15 @@ const GAMES = [
     icon: '\u{2660}',
     minBet: '$1',
   },
+  {
+    id: 'uth',
+    name: "Ultimate Texas Hold'em",
+    description: 'Poker vs the dealer with 4x/3x/2x/1x betting streets',
+    path: '/uth',
+    gradient: 'from-teal-900/40 to-cyan-900/20',
+    icon: '\u{1F0A1}',
+    minBet: '$1',
+  },
 ];
 
 export default function LobbyPage() {
