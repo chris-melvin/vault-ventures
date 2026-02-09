@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+@theme {
+  --color-casino-black: #0a0a0f;
+  --color-casino-dark: #12121a;
+  --color-casino-card: #1a1a2e;
+  --color-casino-gold: #d4af37;
+  --color-casino-gold-light: #f0d060;
+  --color-casino-green: #1a6b3c;
+  --color-casino-green-dark: #0d4a2a;
+  --color-casino-red: #c0392b;
+  --color-casino-blue: #2980b9;
+  --color-casino-felt: #1a6b3c;
+  --color-casino-accent: #e74c3c;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: var(--color-casino-black);
+    color: #e0e0e0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-casino-dark);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-casino-gold);
+    border-radius: 3px;
+  }
+}
+
+/* Custom component classes - plain CSS, not @apply */
+.btn-primary {
+  background-color: var(--color-casino-gold);
+  color: var(--color-casino-black);
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+  cursor: pointer;
+  border: none;
+  font-size: inherit;
+}
+.btn-primary:hover {
+  background-color: var(--color-casino-gold-light);
+}
+.btn-primary:active {
+  transform: scale(0.95);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: var(--color-casino-card);
+  color: var(--color-casino-gold);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  font-size: inherit;
+}
+.btn-secondary:hover {
+  background-color: rgba(212, 175, 55, 0.1);
+}
+.btn-secondary:active {
+  transform: scale(0.95);
+}
+
+.btn-danger {
+  background-color: var(--color-casino-red);
+  color: white;
+  font-weight: 700;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  transition: all 0.2s;
+  cursor: pointer;
+  border: none;
+  font-size: inherit;
+}
+.btn-danger:hover {
+  background-color: #a93226;
+}
+.btn-danger:active {
+  transform: scale(0.95);
+}
+
+.card-panel {
+  background-color: var(--color-casino-card);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px rgba(212, 175, 55, 0.3), 0 0 40px rgba(212, 175, 55, 0.1);
+}
+
+.input-field {
+  background-color: var(--color-casino-dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: white;
+  transition: all 0.2s;
+  width: 100%;
+  font-size: inherit;
+}
+.input-field::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+.input-field:focus {
+  outline: none;
+  border-color: rgba(212, 175, 55, 0.5);
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.15);
+}
+
+.chip {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-width: 4px;
+  border-style: solid;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.chip:active {
+  transform: scale(0.9);
+}
+
+.game-card {
+  background-color: var(--color-casino-card);
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.3);
+  padding: 1.5rem;
+  transition: all 0.3s;
+  cursor: pointer;
+  overflow: hidden;
+  position: relative;
+}
+.game-card:hover {
+  border-color: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 0 30px rgba(212, 175, 55, 0.15);
+  transform: translateY(-4px);
+}
