@@ -10,6 +10,7 @@ import UTHPage from './pages/UTHPage';
 import BankPage from './pages/BankPage';
 import AchievementsPage from './pages/AchievementsPage';
 import MarketPage from './pages/MarketPage';
+import PinballPage from './pages/PinballPage';
 import AchievementToast from './components/achievements/AchievementToast';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/blackjack" element={<ProtectedRoute><BlackjackPage /></ProtectedRoute>} />
         <Route path="/baccarat" element={<ProtectedRoute><BaccaratPage /></ProtectedRoute>} />
         <Route path="/uth" element={<ProtectedRoute><UTHPage /></ProtectedRoute>} />
+        <Route path="/pinball" element={<ProtectedRoute><PinballPage /></ProtectedRoute>} />
         <Route path="/bank" element={<ProtectedRoute><BankPage /></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute><AchievementsPage /></ProtectedRoute>} />
         <Route path="/market" element={<ProtectedRoute><MarketPage /></ProtectedRoute>} />

@@ -77,6 +77,15 @@ const GAMES = [
     icon: '\u{1F0A1}',
     minBet: '$1',
   },
+  {
+    id: 'pinball',
+    name: 'Pinball Slots',
+    description: '3-reel classic with plinko bonus round',
+    path: '/pinball',
+    gradient: 'from-violet-900/40 to-fuchsia-900/20',
+    icon: '\u{1F3B1}',
+    minBet: '$1',
+  },
 ];
 
 export default function LobbyPage() {

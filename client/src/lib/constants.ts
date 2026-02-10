@@ -22,6 +22,16 @@ export const SLOT_SYMBOL_EMOJIS: Record<string, string> = {
   diamond: '\u{1F48E}',
 };
 
+export const PINBALL_SYMBOL_EMOJIS: Record<string, string> = {
+  cherry: '\u{1F352}',
+  lemon: '\u{1F34B}',
+  bell: '\u{1F514}',
+  star: '\u2B50',
+  seven: '7\uFE0F\u20E3',
+  diamond: '\u{1F48E}',
+  pinball: '\u{1F3B1}',
+};
+
 export const SUIT_SYMBOLS: Record<string, string> = {
   hearts: '\u2665',
   diamonds: '\u2666',

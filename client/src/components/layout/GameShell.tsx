@@ -25,7 +25,7 @@ export default function GameShell({ title, children }: GameShellProps) {
           </button>
           <h1 className="text-2xl font-bold text-white">{title}</h1>
         </div>
-        <div className="flex-1 flex flex-col items-center px-4 pb-2 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col items-center px-4 pb-2 min-h-0 overflow-y-auto">
           {children}
         </div>
       </div>

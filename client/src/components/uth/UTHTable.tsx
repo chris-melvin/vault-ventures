@@ -73,10 +73,9 @@ export default function UTHTable({
             {visibleCommunityCards.map((card, i) => (
               <motion.div
                 key={i}
-                initial={{ scale: 0, rotateY: 180 }}
-                animate={{ scale: 1, rotateY: i < cFlipped ? 0 : 180 }}
+                initial={{ scale: 0.5, opacity: 0, y: -20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
                 transition={{ type: 'spring', damping: 15, delay: inDealingMode ? 0 : i * 0.15 }}
-                style={{ perspective: 800, transformStyle: 'preserve-3d' }}
               >
                 <Card card={card} index={i} size="sm" delay={0} showFace={i < cFlipped} />
               </motion.div>

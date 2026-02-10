@@ -28,13 +28,13 @@ export const BACCARAT_TIMINGS = {
 
 export const UTH_TIMINGS = {
   /** Delay between dealing player hole cards */
-  dealInterval: 350,
+  dealInterval: 200,
   /** Flip delay for player cards */
-  flipDelay: 300,
+  flipDelay: 180,
   /** Delay between flop cards */
-  flopInterval: 300,
+  flopInterval: 200,
   /** Delay before river card flips */
-  riverFlipDelay: 400,
+  riverFlipDelay: 250,
   /** Delay between dealer card reveals at showdown */
-  showdownInterval: 500,
+  showdownInterval: 350,
 };

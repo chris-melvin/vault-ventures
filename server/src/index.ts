@@ -11,6 +11,7 @@ import historyRoutes from './routes/history.js';
 import bankRoutes from './routes/bank.js';
 import achievementRoutes from './routes/achievements.js';
 import marketRoutes from './routes/market.js';
+import pinballRoutes from './routes/pinball.js';
 import { seedAchievements } from './services/achievementService.js';
 import { seedMarketItems } from './services/marketService.js';
 
@@ -36,6 +37,7 @@ app.use('/api/history', historyRoutes);
 app.use('/api/bank', bankRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/market', marketRoutes);
+app.use('/api/pinball', pinballRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

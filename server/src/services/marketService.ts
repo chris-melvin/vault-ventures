@@ -2,7 +2,7 @@ import { createHash } from 'crypto';
 import db from '../db/database.js';
 import type {
   MarketItemWithPrice, MarketItemDetail, PricePoint,
-  MarketBuyResult, MarketSellResult, InventoryItem, MarketTransaction,
+  MarketBuyResult, MarketSellResult, InventoryItem, MarketTransaction, RentCollectionResult,
 } from '../../../shared/types.ts';
 
 // ============ Deterministic Pricing ============
@@ -10,7 +10,6 @@ const PRICE_PERIOD_SECONDS = 1800; // 30 minutes
 
 function hashPrice(seed: number, timeBucket: number): number {
   const hash = createHash('sha256').update(`${seed}:${timeBucket}`).digest('hex');
-  // Use first 8 hex chars for a 0-1 float
   const value = parseInt(hash.substring(0, 8), 16);
   return value / 0xffffffff;
 }
@@ -19,10 +18,8 @@ function getCurrentPrice(basePriceCents: number, volatility: number, seed: numbe
   const now = timestamp ?? Math.floor(Date.now() / 1000);
   const timeBucket = Math.floor(now / PRICE_PERIOD_SECONDS);
   const hashVal = hashPrice(seed, timeBucket);
-  // Convert to a wave between -1 and 1
   const wave = (hashVal * 2) - 1;
   const price = Math.floor(basePriceCents * (1 + wave * volatility));
-  // Floor at 10% of base
   return Math.max(Math.floor(basePriceCents * 0.1), price);
 }
 
@@ -34,49 +31,154 @@ function getPreviousPrice(basePriceCents: number, volatility: number, seed: numb
 
 // ============ Seed Market Items ============
 const MARKET_ITEM_SEEDS = [
-  // Collectibles
-  { id: 'lucky_gold_chip', name: 'Lucky Gold Chip', description: 'A rare gold casino chip from the old days', icon: '🪙', category: 'collectible', base_price_cents: 50000, volatility: 0.25, rarity: 'uncommon', seed: 1001 },
-  { id: 'vintage_cards', name: 'Vintage Playing Cards', description: 'A pristine deck from 1960s Manila', icon: '🃏', category: 'collectible', base_price_cents: 30000, volatility: 0.2, rarity: 'common', seed: 1002 },
-  { id: 'crystal_dice', name: 'Crystal Dice Set', description: 'Hand-carved crystal dice with gold pips', icon: '🎲', category: 'collectible', base_price_cents: 150000, volatility: 0.3, rarity: 'rare', seed: 1003 },
-  { id: 'manila_painting', name: 'Manila Bay Painting', description: 'Original oil painting of Manila Bay sunset', icon: '🖼️', category: 'collectible', base_price_cents: 500000, volatility: 0.35, rarity: 'epic', seed: 1004 },
-  { id: 'pearl_necklace', name: 'South Sea Pearl Necklace', description: 'Lustrous pearls from Palawan', icon: '📿', category: 'collectible', base_price_cents: 800000, volatility: 0.4, rarity: 'epic', seed: 1005 },
-  { id: 'golden_tarsier', name: 'Golden Tarsier Figurine', description: 'Solid gold tarsier statuette', icon: '🐒', category: 'collectible', base_price_cents: 2000000, volatility: 0.3, rarity: 'legendary', seed: 1006 },
-  { id: 'ruby_ring', name: 'Pigeon Blood Ruby Ring', description: 'Extremely rare Burmese ruby', icon: '💍', category: 'collectible', base_price_cents: 5000000, volatility: 0.35, rarity: 'legendary', seed: 1007 },
+  // ========== COLLECTIBLES ==========
+  // Existing
+  { id: 'lucky_gold_chip', name: 'Lucky Gold Chip', description: 'A rare gold casino chip from the old days', icon: '🪙', category: 'collectible', base_price_cents: 50000, volatility: 0.25, rarity: 'uncommon', seed: 1001, rent_rate: 0 },
+  { id: 'vintage_cards', name: 'Vintage Playing Cards', description: 'A pristine deck from 1960s Manila', icon: '🃏', category: 'collectible', base_price_cents: 30000, volatility: 0.2, rarity: 'common', seed: 1002, rent_rate: 0 },
+  { id: 'crystal_dice', name: 'Crystal Dice Set', description: 'Hand-carved crystal dice with gold pips', icon: '🎲', category: 'collectible', base_price_cents: 150000, volatility: 0.3, rarity: 'rare', seed: 1003, rent_rate: 0 },
+  { id: 'manila_painting', name: 'Manila Bay Painting', description: 'Original oil painting of Manila Bay sunset', icon: '🖼️', category: 'collectible', base_price_cents: 500000, volatility: 0.35, rarity: 'epic', seed: 1004, rent_rate: 0 },
+  { id: 'pearl_necklace', name: 'South Sea Pearl Necklace', description: 'Lustrous pearls from Palawan', icon: '📿', category: 'collectible', base_price_cents: 800000, volatility: 0.4, rarity: 'epic', seed: 1005, rent_rate: 0 },
+  { id: 'golden_tarsier', name: 'Golden Tarsier Figurine', description: 'Solid gold tarsier statuette', icon: '🐒', category: 'collectible', base_price_cents: 2000000, volatility: 0.3, rarity: 'legendary', seed: 1006, rent_rate: 0 },
+  { id: 'ruby_ring', name: 'Pigeon Blood Ruby Ring', description: 'Extremely rare Burmese ruby', icon: '💍', category: 'collectible', base_price_cents: 5000000, volatility: 0.35, rarity: 'legendary', seed: 1007, rent_rate: 0 },
+  // New collectibles
+  { id: 'antique_fan', name: 'Antique Abanico Fan', description: 'Hand-painted silk fan from the Spanish era', icon: '🪭', category: 'collectible', base_price_cents: 15000, volatility: 0.2, rarity: 'common', seed: 1008, rent_rate: 0 },
+  { id: 'vintage_watch', name: 'Vintage Rolex Datejust', description: 'A 1970s Rolex found in a pawnshop', icon: '⌚', category: 'collectible', base_price_cents: 350000, volatility: 0.3, rarity: 'rare', seed: 1009, rent_rate: 0 },
+  { id: 'manga_collection', name: 'Rare Manga Collection', description: 'First edition Voltes V manga set', icon: '📚', category: 'collectible', base_price_cents: 25000, volatility: 0.25, rarity: 'common', seed: 1010, rent_rate: 0 },
+  { id: 'signed_basketball', name: 'Signed Gilas Basketball', description: 'Game ball signed by the national team', icon: '🏀', category: 'collectible', base_price_cents: 75000, volatility: 0.35, rarity: 'uncommon', seed: 1011, rent_rate: 0 },
+  { id: 'retro_console', name: 'Family Computer (Famicom)', description: 'Mint condition retro gaming console', icon: '🎮', category: 'collectible', base_price_cents: 40000, volatility: 0.2, rarity: 'uncommon', seed: 1012, rent_rate: 0 },
+  { id: 'jade_buddha', name: 'Jade Buddha Statue', description: 'Carved jade Buddha from Chinatown antique shop', icon: '🧘', category: 'collectible', base_price_cents: 200000, volatility: 0.3, rarity: 'rare', seed: 1013, rent_rate: 0 },
+  { id: 'barong_tagalog', name: 'Antique Barong Tagalog', description: 'Piña cloth barong worn by a governor', icon: '👔', category: 'collectible', base_price_cents: 120000, volatility: 0.25, rarity: 'rare', seed: 1014, rent_rate: 0 },
+  { id: 'old_peso', name: '1903 Silver Peso', description: 'American colonial era silver coin', icon: '🥈', category: 'collectible', base_price_cents: 60000, volatility: 0.3, rarity: 'uncommon', seed: 1015, rent_rate: 0 },
+  { id: 'santos_painting', name: 'Santo Niño Oil Painting', description: 'Religious art from a Cebu chapel', icon: '🎨', category: 'collectible', base_price_cents: 250000, volatility: 0.35, rarity: 'rare', seed: 1016, rent_rate: 0 },
+  { id: 'guitar_collection', name: 'Cebu Guitar Set', description: 'Handcrafted guitars from Mactan', icon: '🎸', category: 'collectible', base_price_cents: 80000, volatility: 0.2, rarity: 'uncommon', seed: 1017, rent_rate: 0 },
+  { id: 'pearl_earrings', name: 'Golden Pearl Earrings', description: 'Rare golden pearls from Mindanao', icon: '✨', category: 'collectible', base_price_cents: 450000, volatility: 0.35, rarity: 'epic', seed: 1018, rent_rate: 0 },
+  { id: 'ancient_jar', name: 'Ming Dynasty Jar', description: 'Shipwreck pottery from the South China Sea', icon: '🏺', category: 'collectible', base_price_cents: 1500000, volatility: 0.4, rarity: 'epic', seed: 1019, rent_rate: 0 },
 
-  // Stocks
-  { id: 'jollibee_stock', name: 'Jollibee Corp', description: 'JFC - The beloved fast food giant', icon: '🐝', category: 'stock', base_price_cents: 25000, volatility: 0.35, rarity: 'common', seed: 2001 },
-  { id: 'sm_stock', name: 'SM Holdings', description: 'SMPH - Mall empire conglomerate', icon: '🏬', category: 'stock', base_price_cents: 40000, volatility: 0.4, rarity: 'common', seed: 2002 },
-  { id: 'casino_inc', name: 'Manila Casino Inc', description: 'MCR - Casino operator stock', icon: '🎰', category: 'stock', base_price_cents: 75000, volatility: 0.5, rarity: 'uncommon', seed: 2003 },
-  { id: 'pacific_air', name: 'Pacific Airlines', description: 'PAL - Flag carrier airline', icon: '✈️', category: 'stock', base_price_cents: 15000, volatility: 0.55, rarity: 'common', seed: 2004 },
-  { id: 'ayala_land', name: 'Ayala Land', description: 'ALI - Premier property developer', icon: '🏗️', category: 'stock', base_price_cents: 35000, volatility: 0.3, rarity: 'common', seed: 2005 },
-  { id: 'globe_tel', name: 'Globe Telecom', description: 'GLO - Major telco provider', icon: '📱', category: 'stock', base_price_cents: 30000, volatility: 0.45, rarity: 'common', seed: 2006 },
-  { id: 'bdo_bank', name: 'BDO Unibank', description: 'BDO - Largest bank by assets', icon: '🏦', category: 'stock', base_price_cents: 20000, volatility: 0.35, rarity: 'common', seed: 2007 },
-  { id: 'crypto_peso', name: 'CryptoPeso Token', description: 'CPT - Volatile crypto token', icon: '₿', category: 'stock', base_price_cents: 10000, volatility: 0.6, rarity: 'uncommon', seed: 2008 },
+  // ========== STOCKS ==========
+  // Existing
+  { id: 'jollibee_stock', name: 'Jollibee Corp', description: 'JFC - The beloved fast food giant', icon: '🐝', category: 'stock', base_price_cents: 25000, volatility: 0.35, rarity: 'common', seed: 2001, rent_rate: 0 },
+  { id: 'sm_stock', name: 'SM Holdings', description: 'SMPH - Mall empire conglomerate', icon: '🏬', category: 'stock', base_price_cents: 40000, volatility: 0.4, rarity: 'common', seed: 2002, rent_rate: 0 },
+  { id: 'casino_inc', name: 'Manila Casino Inc', description: 'MCR - Casino operator stock', icon: '🎰', category: 'stock', base_price_cents: 75000, volatility: 0.5, rarity: 'uncommon', seed: 2003, rent_rate: 0 },
+  { id: 'pacific_air', name: 'Pacific Airlines', description: 'PAL - Flag carrier airline', icon: '✈️', category: 'stock', base_price_cents: 15000, volatility: 0.55, rarity: 'common', seed: 2004, rent_rate: 0 },
+  { id: 'ayala_land', name: 'Ayala Land', description: 'ALI - Premier property developer', icon: '🏗️', category: 'stock', base_price_cents: 35000, volatility: 0.3, rarity: 'common', seed: 2005, rent_rate: 0 },
+  { id: 'globe_tel', name: 'Globe Telecom', description: 'GLO - Major telco provider', icon: '📱', category: 'stock', base_price_cents: 30000, volatility: 0.45, rarity: 'common', seed: 2006, rent_rate: 0 },
+  { id: 'bdo_bank', name: 'BDO Unibank', description: 'BDO - Largest bank by assets', icon: '🏦', category: 'stock', base_price_cents: 20000, volatility: 0.35, rarity: 'common', seed: 2007, rent_rate: 0 },
+  { id: 'crypto_peso', name: 'CryptoPeso Token', description: 'CPT - Volatile crypto token', icon: '₿', category: 'stock', base_price_cents: 10000, volatility: 0.6, rarity: 'uncommon', seed: 2008, rent_rate: 0 },
+  // New regular stocks
+  { id: 'meralco_stock', name: 'Meralco', description: 'MER - Power distribution monopoly', icon: '⚡', category: 'stock', base_price_cents: 32000, volatility: 0.2, rarity: 'common', seed: 2009, rent_rate: 0 },
+  { id: 'pldt_stock', name: 'PLDT Inc', description: 'TEL - Telecom and digital services', icon: '📡', category: 'stock', base_price_cents: 28000, volatility: 0.25, rarity: 'common', seed: 2010, rent_rate: 0 },
+  { id: 'megaworld_stock', name: 'Megaworld Corp', description: 'MEG - Township developer', icon: '🏙️', category: 'stock', base_price_cents: 8000, volatility: 0.4, rarity: 'common', seed: 2011, rent_rate: 0 },
+  { id: 'san_miguel', name: 'San Miguel Corp', description: 'SMC - Beer, food, and infrastructure', icon: '🍺', category: 'stock', base_price_cents: 22000, volatility: 0.3, rarity: 'common', seed: 2012, rent_rate: 0 },
+  { id: 'puregold', name: 'Puregold Price Club', description: 'PGOLD - Grocery retail chain', icon: '🛒', category: 'stock', base_price_cents: 12000, volatility: 0.2, rarity: 'common', seed: 2013, rent_rate: 0 },
+  { id: 'robinsons_land', name: 'Robinsons Land', description: 'RLC - Mall and property developer', icon: '🏪', category: 'stock', base_price_cents: 18000, volatility: 0.3, rarity: 'common', seed: 2014, rent_rate: 0 },
+  { id: 'bpi_stock', name: 'Bank of PI', description: 'BPI - Heritage banking institution', icon: '💰', category: 'stock', base_price_cents: 26000, volatility: 0.15, rarity: 'common', seed: 2015, rent_rate: 0 },
+  { id: 'aboitiz_power', name: 'Aboitiz Power', description: 'AP - Power generation company', icon: '🔋', category: 'stock', base_price_cents: 15000, volatility: 0.25, rarity: 'common', seed: 2016, rent_rate: 0 },
+  // Penny stocks (cheap + high volatility)
+  { id: 'penny_dragonfi', name: 'DragonFi Labs', description: 'DRFI - Experimental AI startup, pre-revenue', icon: '🐉', category: 'stock', base_price_cents: 200, volatility: 0.75, rarity: 'common', seed: 2101, rent_rate: 0 },
+  { id: 'penny_moonmine', name: 'MoonMine Corp', description: 'MNMN - Asteroid mining speculative play', icon: '🌙', category: 'stock', base_price_cents: 50, volatility: 0.85, rarity: 'common', seed: 2102, rent_rate: 0 },
+  { id: 'penny_aquafarm', name: 'AquaFarm PH', description: 'AQFM - Seaweed and tilapia micro-farm', icon: '🐟', category: 'stock', base_price_cents: 150, volatility: 0.7, rarity: 'common', seed: 2103, rent_rate: 0 },
+  { id: 'penny_jeepev', name: 'JeepEV Motors', description: 'JPEV - Electric jeepney startup', icon: '🔌', category: 'stock', base_price_cents: 500, volatility: 0.65, rarity: 'common', seed: 2104, rent_rate: 0 },
+  { id: 'penny_nftisland', name: 'NFT Island', description: 'NFTI - Digital real estate tokens, highly volatile', icon: '🏝️', category: 'stock', base_price_cents: 100, volatility: 0.9, rarity: 'common', seed: 2105, rent_rate: 0 },
+  { id: 'penny_volcanbrew', name: 'Volcan Brew Co', description: 'VLCN - Craft beer from volcanic spring water', icon: '🌋', category: 'stock', base_price_cents: 300, volatility: 0.6, rarity: 'common', seed: 2106, rent_rate: 0 },
+  { id: 'penny_bambootech', name: 'BambooTech', description: 'BMBT - Bamboo-based construction materials', icon: '🎋', category: 'stock', base_price_cents: 250, volatility: 0.55, rarity: 'common', seed: 2107, rent_rate: 0 },
+  { id: 'penny_calamansi', name: 'Calamansi Gold', description: 'CLMG - Calamansi extract skincare line', icon: '🍋', category: 'stock', base_price_cents: 80, volatility: 0.8, rarity: 'common', seed: 2108, rent_rate: 0 },
+  { id: 'penny_reef', name: 'ReefDAO', description: 'REEF - Decentralized coral reef conservation', icon: '🪸', category: 'stock', base_price_cents: 30, volatility: 0.9, rarity: 'common', seed: 2109, rent_rate: 0 },
+  { id: 'penny_kaizen', name: 'Kaizen Robotics', description: 'KZRB - Warehouse automation, early stage', icon: '🤖', category: 'stock', base_price_cents: 400, volatility: 0.7, rarity: 'common', seed: 2110, rent_rate: 0 },
+  { id: 'penny_saritoken', name: 'SariSari Token', description: 'SARI - Blockchain loyalty points for corner stores', icon: '🏪', category: 'stock', base_price_cents: 20, volatility: 0.95, rarity: 'common', seed: 2111, rent_rate: 0 },
+  { id: 'penny_typhoon', name: 'Typhoon Energy', description: 'TYPH - Wind power from typhoon corridors', icon: '🌀', category: 'stock', base_price_cents: 350, volatility: 0.6, rarity: 'common', seed: 2112, rent_rate: 0 },
 
-  // Property
-  { id: 'makati_condo', name: 'Condo in Makati', description: 'Studio unit in the business district', icon: '🏢', category: 'property', base_price_cents: 5000000, volatility: 0.08, rarity: 'rare', seed: 3001 },
-  { id: 'boracay_house', name: 'Beach House in Boracay', description: 'Beachfront villa on White Beach', icon: '🏖️', category: 'property', base_price_cents: 15000000, volatility: 0.1, rarity: 'epic', seed: 3002 },
-  { id: 'bgc_penthouse', name: 'Penthouse in BGC', description: 'Luxury penthouse with skyline view', icon: '🌆', category: 'property', base_price_cents: 50000000, volatility: 0.05, rarity: 'legendary', seed: 3003 },
-  { id: 'tagaytay_lot', name: 'Tagaytay Hilltop Lot', description: 'Prime lot with Taal volcano view', icon: '⛰️', category: 'property', base_price_cents: 8000000, volatility: 0.12, rarity: 'rare', seed: 3004 },
-  { id: 'palawan_resort', name: 'Palawan Island Resort', description: 'Private island resort in El Nido', icon: '🏝️', category: 'property', base_price_cents: 100000000, volatility: 0.07, rarity: 'legendary', seed: 3005 },
+  // ========== PROPERTY (with rent) ==========
+  // Affordable properties
+  { id: 'bed_space', name: 'Bed Space in Tondo', description: 'A single bed space in a shared room', icon: '🛏️', category: 'property', base_price_cents: 20000, volatility: 0.05, rarity: 'common', seed: 3101, rent_rate: 0.005 },
+  { id: 'market_stall', name: 'Divisoria Market Stall', description: 'Small stall in the busiest market in Manila', icon: '🏪', category: 'property', base_price_cents: 150000, volatility: 0.08, rarity: 'common', seed: 3102, rent_rate: 0.0035 },
+  { id: 'food_cart', name: 'Fishball Cart Franchise', description: 'Street food cart near a school', icon: '🍢', category: 'property', base_price_cents: 80000, volatility: 0.1, rarity: 'common', seed: 3103, rent_rate: 0.004 },
+  { id: 'sari_sari', name: 'Sari-Sari Store', description: 'Neighborhood convenience store in the barangay', icon: '🧃', category: 'property', base_price_cents: 200000, volatility: 0.06, rarity: 'common', seed: 3104, rent_rate: 0.003 },
+  { id: 'water_station', name: 'Water Refilling Station', description: 'Purified water business in a subdivision', icon: '💧', category: 'property', base_price_cents: 600000, volatility: 0.05, rarity: 'uncommon', seed: 3105, rent_rate: 0.0025 },
+  { id: 'parking_space', name: 'Parking Space in Makati', description: 'Reserved lot in a CBD building', icon: '🅿️', category: 'property', base_price_cents: 500000, volatility: 0.04, rarity: 'uncommon', seed: 3106, rent_rate: 0.002 },
+  { id: 'internet_cafe', name: 'Internet Cafe', description: '20-PC computer shop near a university', icon: '🖥️', category: 'property', base_price_cents: 800000, volatility: 0.08, rarity: 'uncommon', seed: 3107, rent_rate: 0.003 },
+  { id: 'laundromat', name: 'Coin Laundry Shop', description: 'Self-service laundromat in a condo area', icon: '🧺', category: 'property', base_price_cents: 1200000, volatility: 0.05, rarity: 'uncommon', seed: 3108, rent_rate: 0.002 },
+  { id: 'karaoke_bar', name: 'KTV Karaoke Bar', description: '8-room karaoke joint in Pasay', icon: '🎤', category: 'property', base_price_cents: 1500000, volatility: 0.1, rarity: 'rare', seed: 3109, rent_rate: 0.0025 },
+  { id: 'rice_paddy', name: 'Rice Paddy in Nueva Ecija', description: '1 hectare irrigated rice field', icon: '🌾', category: 'property', base_price_cents: 300000, volatility: 0.04, rarity: 'common', seed: 3110, rent_rate: 0.0015 },
+  { id: 'fish_pen', name: 'Fish Pen in Laguna de Bay', description: 'Milkfish aquaculture pen', icon: '🐠', category: 'property', base_price_cents: 400000, volatility: 0.08, rarity: 'common', seed: 3111, rent_rate: 0.002 },
+  { id: 'boarding_house', name: 'Boarding House', description: '6-room boarding house near UST', icon: '🏠', category: 'property', base_price_cents: 2500000, volatility: 0.06, rarity: 'rare', seed: 3112, rent_rate: 0.002 },
+  { id: 'storage_unit', name: 'Storage Unit', description: 'Climate-controlled storage in Quezon City', icon: '📦', category: 'property', base_price_cents: 350000, volatility: 0.04, rarity: 'common', seed: 3113, rent_rate: 0.002 },
+  { id: 'jeepney_route', name: 'Jeepney Route Franchise', description: 'Franchise rights for a busy route', icon: '🚐', category: 'property', base_price_cents: 2000000, volatility: 0.06, rarity: 'rare', seed: 3114, rent_rate: 0.002 },
+  { id: 'carwash', name: 'Car Wash Station', description: 'Automated car wash on a main road', icon: '🚿', category: 'property', base_price_cents: 1800000, volatility: 0.07, rarity: 'rare', seed: 3115, rent_rate: 0.0022 },
+  { id: 'small_apartment', name: 'Studio Apartment in QC', description: 'Small apartment unit near MRT', icon: '🚪', category: 'property', base_price_cents: 3500000, volatility: 0.06, rarity: 'rare', seed: 3116, rent_rate: 0.0018 },
+  { id: 'mango_farm', name: 'Mango Farm in Guimaras', description: '2 hectares of sweet mango trees', icon: '🥭', category: 'property', base_price_cents: 1000000, volatility: 0.05, rarity: 'uncommon', seed: 3117, rent_rate: 0.0015 },
+  { id: 'coffee_farm', name: 'Coffee Farm in Benguet', description: 'Arabica coffee plantation in the highlands', icon: '☕', category: 'property', base_price_cents: 1500000, volatility: 0.06, rarity: 'uncommon', seed: 3118, rent_rate: 0.0018 },
+  { id: 'ukay_shop', name: 'Ukay-Ukay Warehouse', description: 'Thrift clothing warehouse with loyal buyers', icon: '👕', category: 'property', base_price_cents: 250000, volatility: 0.08, rarity: 'common', seed: 3119, rent_rate: 0.003 },
+  { id: 'bangus_farm', name: 'Bangus Farm in Dagupan', description: 'Milkfish pond producing daily harvests', icon: '🐟', category: 'property', base_price_cents: 700000, volatility: 0.06, rarity: 'uncommon', seed: 3120, rent_rate: 0.002 },
+  // Existing (now with rent)
+  { id: 'makati_condo', name: 'Condo in Makati', description: 'Studio unit in the business district', icon: '🏢', category: 'property', base_price_cents: 5000000, volatility: 0.08, rarity: 'rare', seed: 3001, rent_rate: 0.0015 },
+  { id: 'boracay_house', name: 'Beach House in Boracay', description: 'Beachfront villa on White Beach', icon: '🏖️', category: 'property', base_price_cents: 15000000, volatility: 0.1, rarity: 'epic', seed: 3002, rent_rate: 0.001 },
+  { id: 'bgc_penthouse', name: 'Penthouse in BGC', description: 'Luxury penthouse with skyline view', icon: '🌆', category: 'property', base_price_cents: 50000000, volatility: 0.05, rarity: 'legendary', seed: 3003, rent_rate: 0.0008 },
+  { id: 'tagaytay_lot', name: 'Tagaytay Hilltop Lot', description: 'Prime lot with Taal volcano view', icon: '⛰️', category: 'property', base_price_cents: 8000000, volatility: 0.12, rarity: 'rare', seed: 3004, rent_rate: 0.001 },
+  { id: 'palawan_resort', name: 'Palawan Island Resort', description: 'Private island resort in El Nido', icon: '🏝️', category: 'property', base_price_cents: 100000000, volatility: 0.07, rarity: 'legendary', seed: 3005, rent_rate: 0.0006 },
 
-  // Vehicles
-  { id: 'jeepney', name: 'Classic Jeepney', description: 'Restored vintage Philippine jeepney', icon: '🚌', category: 'vehicle', base_price_cents: 500000, volatility: 0.15, rarity: 'uncommon', seed: 4001 },
-  { id: 'fortuner', name: 'Toyota Fortuner', description: 'Popular mid-size SUV', icon: '🚙', category: 'vehicle', base_price_cents: 2000000, volatility: 0.12, rarity: 'rare', seed: 4002 },
-  { id: 'lambo', name: 'Lamborghini Huracan', description: 'Italian supercar with V10 engine', icon: '🏎️', category: 'vehicle', base_price_cents: 25000000, volatility: 0.2, rarity: 'epic', seed: 4003 },
-  { id: 'yacht', name: 'Luxury Yacht', description: '60ft luxury motor yacht', icon: '🛥️', category: 'vehicle', base_price_cents: 75000000, volatility: 0.15, rarity: 'legendary', seed: 4004 },
-  { id: 'trike', name: 'Custom Tricycle', description: 'Souped-up Filipino tricycle', icon: '🛺', category: 'vehicle', base_price_cents: 100000, volatility: 0.25, rarity: 'common', seed: 4005 },
-  { id: 'helicopter', name: 'Robinson R44', description: 'Personal helicopter for island hopping', icon: '🚁', category: 'vehicle', base_price_cents: 40000000, volatility: 0.18, rarity: 'legendary', seed: 4006 },
+  // ========== VEHICLES ==========
+  { id: 'jeepney', name: 'Classic Jeepney', description: 'Restored vintage Philippine jeepney', icon: '🚌', category: 'vehicle', base_price_cents: 500000, volatility: 0.15, rarity: 'uncommon', seed: 4001, rent_rate: 0 },
+  { id: 'fortuner', name: 'Toyota Fortuner', description: 'Popular mid-size SUV', icon: '🚙', category: 'vehicle', base_price_cents: 2000000, volatility: 0.12, rarity: 'rare', seed: 4002, rent_rate: 0 },
+  { id: 'lambo', name: 'Lamborghini Huracan', description: 'Italian supercar with V10 engine', icon: '🏎️', category: 'vehicle', base_price_cents: 25000000, volatility: 0.2, rarity: 'epic', seed: 4003, rent_rate: 0 },
+  { id: 'yacht', name: 'Luxury Yacht', description: '60ft luxury motor yacht', icon: '🛥️', category: 'vehicle', base_price_cents: 75000000, volatility: 0.15, rarity: 'legendary', seed: 4004, rent_rate: 0 },
+  { id: 'trike', name: 'Custom Tricycle', description: 'Souped-up Filipino tricycle', icon: '🛺', category: 'vehicle', base_price_cents: 100000, volatility: 0.25, rarity: 'common', seed: 4005, rent_rate: 0 },
+  { id: 'helicopter', name: 'Robinson R44', description: 'Personal helicopter for island hopping', icon: '🚁', category: 'vehicle', base_price_cents: 40000000, volatility: 0.18, rarity: 'legendary', seed: 4006, rent_rate: 0 },
 ];
 
+function runMigrations(): void {
+  // Add rent_rate column to market_items if not exists
+  try {
+    db.prepare("SELECT rent_rate FROM market_items LIMIT 1").get();
+  } catch {
+    db.exec("ALTER TABLE market_items ADD COLUMN rent_rate REAL NOT NULL DEFAULT 0");
+  }
+  // Add last_rent_at column to user_inventory if not exists
+  try {
+    db.prepare("SELECT last_rent_at FROM user_inventory LIMIT 1").get();
+  } catch {
+    const nowEpoch = Math.floor(Date.now() / 1000);
+    db.exec(`ALTER TABLE user_inventory ADD COLUMN last_rent_at INTEGER NOT NULL DEFAULT ${nowEpoch}`);
+  }
+  // Migrate meta_transactions to include 'RENT' in CHECK constraint
+  // SQLite can't ALTER CHECK constraints, so recreate the table if needed
+  try {
+    db.exec("INSERT INTO meta_transactions (user_id, amount_cents, type, description) VALUES (0, 0, 'RENT', '__migration_test__')");
+    db.exec("DELETE FROM meta_transactions WHERE user_id = 0 AND description = '__migration_test__'");
+  } catch {
+    // CHECK constraint rejects 'RENT' - need to recreate table
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS meta_transactions_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        type TEXT NOT NULL CHECK(type IN ('BANK_DEPOSIT','BANK_WITHDRAW','BANK_INTEREST','MARKET_BUY','MARKET_SELL','ACHIEVEMENT_REWARD','RENT')),
+        description TEXT,
+        timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      );
+      INSERT INTO meta_transactions_new SELECT * FROM meta_transactions;
+      DROP TABLE meta_transactions;
+      ALTER TABLE meta_transactions_new RENAME TO meta_transactions;
+    `);
+  }
+}
+
 export function seedMarketItems(): void {
+  runMigrations();
+
   const insert = db.prepare(
-    'INSERT OR IGNORE INTO market_items (id, name, description, icon, category, base_price_cents, volatility, rarity, seed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO market_items (id, name, description, icon, category, base_price_cents, volatility, rarity, seed, rent_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
+
+  // Also update existing items with rent rates
+  const updateRent = db.prepare('UPDATE market_items SET rent_rate = ? WHERE id = ? AND rent_rate = 0 AND ? > 0');
 
   const run = db.transaction(() => {
     for (const item of MARKET_ITEM_SEEDS) {
-      insert.run(item.id, item.name, item.description, item.icon, item.category, item.base_price_cents, item.volatility, item.rarity, item.seed);
+      insert.run(item.id, item.name, item.description, item.icon, item.category, item.base_price_cents, item.volatility, item.rarity, item.seed, item.rent_rate);
+      if (item.rent_rate > 0) {
+        updateRent.run(item.rent_rate, item.id, item.rent_rate);
+      }
     }
   });
 
@@ -95,6 +197,7 @@ interface MarketItemRow {
   rarity: string;
   available: number;
   seed: number;
+  rent_rate: number;
 }
 
 export function getMarketItems(category?: string): MarketItemWithPrice[] {
@@ -120,6 +223,7 @@ export function getMarketItems(category?: string): MarketItemWithPrice[] {
       base_price_cents: item.base_price_cents,
       volatility: item.volatility,
       rarity: item.rarity as any,
+      rent_rate: item.rent_rate || 0,
       current_price_cents: current,
       previous_price_cents: previous,
       trend_percent: Math.round(trend * 100) / 100,
@@ -146,6 +250,7 @@ export function getMarketItemDetail(itemId: string, periods: number = 24): Marke
     base_price_cents: item.base_price_cents,
     volatility: item.volatility,
     rarity: item.rarity as any,
+    rent_rate: item.rent_rate || 0,
     current_price_cents: current,
     previous_price_cents: previous,
     trend_percent: Math.round(trend * 100) / 100,
@@ -252,30 +357,147 @@ export function sellItem(userId: number, inventoryId: number): MarketSellResult 
 
 export function getUserInventory(userId: number): InventoryItem[] {
   const items = db.prepare(
-    `SELECT ui.id, ui.item_id, ui.quantity, ui.purchased_price_cents, ui.purchased_at,
-            mi.name, mi.icon, mi.category, mi.rarity, mi.base_price_cents, mi.volatility, mi.seed
+    `SELECT ui.item_id,
+            SUM(ui.quantity) as total_quantity,
+            SUM(ui.quantity * ui.purchased_price_cents) as total_cost,
+            MIN(ui.id) as first_id,
+            MAX(ui.purchased_at) as latest_at,
+            MIN(ui.last_rent_at) as earliest_rent_at,
+            mi.name, mi.icon, mi.category, mi.rarity, mi.base_price_cents, mi.volatility, mi.seed, mi.rent_rate
      FROM user_inventory ui
      JOIN market_items mi ON ui.item_id = mi.id
      WHERE ui.user_id = ?
-     ORDER BY ui.purchased_at DESC`
+     GROUP BY ui.item_id
+     ORDER BY latest_at DESC`
   ).all(userId) as any[];
+
+  const now = Math.floor(Date.now() / 1000);
 
   return items.map(row => {
     const currentPrice = getCurrentPrice(row.base_price_cents, row.volatility, row.seed);
+    const avgPurchasePrice = Math.round(row.total_cost / row.total_quantity);
+    const rentRate = row.rent_rate || 0;
+
+    // Calculate pending rent
+    let pendingRent = 0;
+    if (rentRate > 0) {
+      const lastRentAt = row.earliest_rent_at || row.latest_at;
+      const hoursElapsed = (now - lastRentAt) / 3600;
+      pendingRent = Math.floor(currentPrice * row.total_quantity * rentRate * hoursElapsed);
+    }
+
     return {
-      id: row.id,
+      id: row.first_id,
       item_id: row.item_id,
       name: row.name,
       icon: row.icon,
       category: row.category,
       rarity: row.rarity,
-      quantity: row.quantity,
-      purchased_price_cents: row.purchased_price_cents,
+      quantity: row.total_quantity,
+      purchased_price_cents: avgPurchasePrice,
       current_price_cents: currentPrice,
-      profit_cents: (currentPrice - row.purchased_price_cents) * row.quantity,
-      purchased_at: row.purchased_at,
+      profit_cents: (currentPrice - avgPurchasePrice) * row.total_quantity,
+      purchased_at: row.latest_at,
+      rent_rate: rentRate,
+      pending_rent_cents: pendingRent,
     };
   });
+}
+
+export function collectRent(userId: number): RentCollectionResult {
+  const now = Math.floor(Date.now() / 1000);
+
+  const run = db.transaction(() => {
+    // Get all inventory rows with rent-generating items
+    const rows = db.prepare(
+      `SELECT ui.id, ui.item_id, ui.quantity, ui.last_rent_at,
+              mi.base_price_cents, mi.volatility, mi.seed, mi.rent_rate
+       FROM user_inventory ui
+       JOIN market_items mi ON ui.item_id = mi.id
+       WHERE ui.user_id = ? AND mi.rent_rate > 0`
+    ).all(userId) as any[];
+
+    let totalRent = 0;
+    let propertiesCollected = 0;
+
+    for (const row of rows) {
+      const lastRentAt = row.last_rent_at || now;
+      const hoursElapsed = (now - lastRentAt) / 3600;
+      if (hoursElapsed <= 0) continue;
+
+      const currentPrice = getCurrentPrice(row.base_price_cents, row.volatility, row.seed);
+      const rent = Math.floor(currentPrice * row.quantity * row.rent_rate * hoursElapsed);
+      if (rent <= 0) continue;
+
+      totalRent += rent;
+      propertiesCollected++;
+
+      // Update last_rent_at
+      db.prepare('UPDATE user_inventory SET last_rent_at = ? WHERE id = ?').run(now, row.id);
+    }
+
+    if (totalRent > 0) {
+      db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?').run(totalRent, userId);
+      db.prepare(
+        'INSERT INTO meta_transactions (user_id, amount_cents, type, description) VALUES (?, ?, ?, ?)'
+      ).run(userId, totalRent, 'RENT', `Collected rent from ${propertiesCollected} properties`);
+    }
+
+    const newBalance = (db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number }).balance_cents;
+
+    return {
+      total_rent_cents: totalRent,
+      properties_collected: propertiesCollected,
+      new_balance_cents: newBalance,
+    };
+  });
+
+  return run();
+}
+
+export function sellPosition(userId: number, itemId: string): MarketSellResult {
+  const run = db.transaction(() => {
+    const rows = db.prepare('SELECT * FROM user_inventory WHERE user_id = ? AND item_id = ?').all(userId, itemId) as any[];
+    if (rows.length === 0) throw new Error('No holdings found for this item');
+
+    const item = db.prepare('SELECT * FROM market_items WHERE id = ?').get(itemId) as MarketItemRow;
+    const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
+
+    let totalQuantity = 0;
+    let totalOrigCost = 0;
+    for (const row of rows) {
+      totalQuantity += row.quantity;
+      totalOrigCost += row.purchased_price_cents * row.quantity;
+    }
+
+    const totalRevenue = priceCents * totalQuantity;
+    const profit = totalRevenue - totalOrigCost;
+
+    db.prepare('DELETE FROM user_inventory WHERE user_id = ? AND item_id = ?').run(userId, itemId);
+
+    db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?').run(totalRevenue, userId);
+
+    db.prepare(
+      'INSERT INTO market_transactions (user_id, item_id, action, quantity, price_cents) VALUES (?, ?, ?, ?, ?)'
+    ).run(userId, itemId, 'SELL', totalQuantity, priceCents);
+
+    db.prepare(
+      'INSERT INTO meta_transactions (user_id, amount_cents, type, description) VALUES (?, ?, ?, ?)'
+    ).run(userId, totalRevenue, 'MARKET_SELL', `Sold ${totalQuantity}x ${item.name}`);
+
+    const newBalance = (db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number }).balance_cents;
+
+    return {
+      item_id: itemId,
+      quantity: totalQuantity,
+      price_cents: priceCents,
+      total_revenue_cents: totalRevenue,
+      profit_cents: profit,
+      new_balance_cents: newBalance,
+    };
+  });
+
+  return run();
 }
 
 export function getMarketHistory(userId: number, limit: number = 20): MarketTransaction[] {

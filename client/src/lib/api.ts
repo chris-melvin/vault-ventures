@@ -22,6 +22,8 @@ import type {
   InventoryItem,
   MarketTransaction,
   PricePoint,
+  PinballSpinResult,
+  RentCollectionResult,
 } from '@shared/types';
 
 // Initialize token from localStorage immediately so it's available before any effects run
@@ -198,6 +200,15 @@ export const achievements = {
   getStats: () => request<UserStats>('/achievements/stats'),
 };
 
+// Pinball Slots
+export const pinball = {
+  spin: (amount_cents: number, bet_level: number = 1) =>
+    request<PinballSpinResult>('/pinball/spin', {
+      method: 'POST',
+      body: JSON.stringify({ amount_cents, bet_level }),
+    }),
+};
+
 // Market
 export const market = {
   getItems: (category?: string) =>
@@ -213,6 +224,15 @@ export const market = {
     request<MarketSellResult>('/market/sell', {
       method: 'POST',
       body: JSON.stringify({ inventory_id }),
+    }),
+  sellPosition: (item_id: string) =>
+    request<MarketSellResult>('/market/sell-position', {
+      method: 'POST',
+      body: JSON.stringify({ item_id }),
+    }),
+  collectRent: () =>
+    request<RentCollectionResult>('/market/collect-rent', {
+      method: 'POST',
     }),
   inventory: () => request<InventoryItem[]>('/market/inventory'),
   history: (limit = 20) =>

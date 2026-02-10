@@ -31,7 +31,7 @@ export default function Header() {
           onClick={() => navigate('/lobby')}
           className="text-casino-gold font-bold text-xl tracking-wider hover:text-casino-gold-light transition-colors cursor-pointer"
         >
-          SOLAIRE
+          VAULT VENTURES
         </button>
 
         <div className="flex items-center gap-6">
@@ -42,17 +42,15 @@ export default function Header() {
             </span>
           </div>
 
-          {bankAccount && bankAccount.balance_cents > 0 && (
-            <button
-              onClick={() => navigate('/bank')}
-              className="card-panel px-3 py-2 hover:border-casino-gold/30 transition-colors cursor-pointer"
-            >
-              <span className="text-xs text-white/50 block leading-none">BANK</span>
-              <span className="text-green-400 font-bold text-sm leading-tight">
-                {formatCents(bankAccount.balance_cents)}
-              </span>
-            </button>
-          )}
+          <button
+            onClick={() => navigate('/bank')}
+            className="card-panel px-3 py-2 hover:border-casino-gold/30 transition-colors cursor-pointer"
+          >
+            <span className="text-xs text-white/50 block leading-none text-center">BANK</span>
+            <span className="text-green-400 font-bold text-sm leading-tight">
+              {bankAccount && bankAccount.balance_cents > 0 ? '***' : '--'}
+            </span>
+          </button>
 
           <button
             onClick={toggleMute}

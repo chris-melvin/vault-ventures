@@ -2,44 +2,7 @@ import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
 import { SlotSymbol, SLOT_SYMBOLS, SLOT_PAYOUTS, SlotsSpinResult } from '../../../shared/types.ts';
-
-const REEL_LENGTH = 16;
-const REEL_COUNT = 5;
-const VISIBLE_ROWS = 3;
-
-// Generate weighted reel strips (higher-value symbols appear less)
-function generateReelStrip(): SlotSymbol[] {
-  const weights: [SlotSymbol, number][] = [
-    ['cherry', 4], ['lemon', 3], ['orange', 3], ['grape', 2],
-    ['watermelon', 2], ['bell', 1], ['star', 1], ['seven', 0], ['diamond', 0],
-  ];
-
-  const strip: SlotSymbol[] = [];
-  for (const [sym, count] of weights) {
-    for (let i = 0; i < count; i++) strip.push(sym);
-  }
-  // Fill remaining with low-value
-  while (strip.length < REEL_LENGTH) strip.push('cherry');
-  return strip;
-}
-
-const REEL_STRIPS: SlotSymbol[][] = Array.from({ length: REEL_COUNT }, () => generateReelStrip());
-
-// Ensure seven and diamond exist on some reels
-REEL_STRIPS[0][15] = 'seven';
-REEL_STRIPS[1][14] = 'seven';
-REEL_STRIPS[2][13] = 'seven';
-REEL_STRIPS[3][12] = 'diamond';
-REEL_STRIPS[4][11] = 'diamond';
-
-function getVisibleSymbols(reelIndex: number, stopPosition: number): SlotSymbol[] {
-  const strip = REEL_STRIPS[reelIndex];
-  const symbols: SlotSymbol[] = [];
-  for (let i = 0; i < VISIBLE_ROWS; i++) {
-    symbols.push(strip[(stopPosition + i) % REEL_LENGTH]);
-  }
-  return symbols;
-}
+import { REEL_STRIPS, REEL_COUNT, REEL_LENGTH, VISIBLE_ROWS, getVisibleSymbols } from '../../../shared/slots.ts';
 
 function checkPaylines(allSymbols: SlotSymbol[][]): { line: number; symbols: SlotSymbol[]; multiplier: number }[] {
   const paylines: { line: number; symbols: SlotSymbol[]; multiplier: number }[] = [];

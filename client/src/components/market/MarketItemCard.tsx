@@ -12,7 +12,7 @@ const RARITY_COLORS: Record<string, string> = {
 
 interface Props {
   item: MarketItemWithPrice;
-  onBuy: (itemId: string) => void;
+  onBuy: (itemId: string, quantity?: number) => void;
   onSelect: (itemId: string) => void;
 }
 
@@ -36,6 +36,12 @@ export default function MarketItemCard({ item, onBuy, onSelect }: Props) {
       </div>
 
       <div className="text-white/40 text-xs mb-3 line-clamp-2">{item.description}</div>
+
+      {item.rent_rate > 0 && (
+        <div className="text-emerald-400/70 text-[10px] mb-2 font-bold">
+          Earns {(item.rent_rate * 100).toFixed(2)}%/hr rent
+        </div>
+      )}
 
       <div className="flex items-center justify-between">
         <div>

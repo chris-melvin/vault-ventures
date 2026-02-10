@@ -190,7 +190,7 @@ export default function UTHGame() {
     <div className="flex flex-col items-center gap-4 w-full max-w-2xl">
       {/* Table felt */}
       <div
-        className="w-full p-6 min-h-[480px] flex flex-col relative overflow-hidden rounded-xl"
+        className={`w-full p-6 ${game ? 'min-h-[400px]' : 'min-h-[200px]'} flex flex-col relative overflow-hidden rounded-xl`}
         style={{
           background: 'radial-gradient(ellipse at 50% 40%, #1e6b45 0%, #155a35 40%, #0d3d22 100%)',
           border: '3px solid #8B6914',
@@ -254,9 +254,9 @@ export default function UTHGame() {
             {isPlaying && !isAnimating && game && (
               <motion.div
                 className="flex gap-2 flex-wrap justify-center"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0, y: 10 }}
               >
                 {game.available_actions.map((action, i) => {
                   const isFold = action === 'fold';
@@ -265,9 +265,11 @@ export default function UTHGame() {
                       key={action}
                       onClick={() => handleAction(action)}
                       disabled={loading}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 }}
+                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      transition={{ type: 'spring', damping: 18, stiffness: 400, delay: i * 0.05 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                       className="px-5 py-2.5 rounded-full font-bold text-sm uppercase tracking-wider cursor-pointer transition-colors"
                       style={{
                         backgroundColor: isFold ? 'rgba(192,57,43,0.4)' : 'rgba(0,0,0,0.5)',
@@ -287,9 +289,9 @@ export default function UTHGame() {
 
       {/* Pre-deal controls */}
       {!game && (
-        <div className="flex flex-col items-center gap-3 w-full max-w-lg">
-          {/* Ante betting circle */}
-          <div className="flex items-end gap-6">
+        <div className="flex flex-col items-center gap-2 w-full max-w-lg">
+          {/* Ante + Trips row */}
+          <div className="flex items-end gap-4">
             <div className="flex flex-col items-center gap-1">
               <span className="text-white/40 text-xs">Ante</span>
               <BettingCircle
@@ -300,18 +302,18 @@ export default function UTHGame() {
               />
             </div>
             <div className="flex flex-col items-center gap-1">
-              <span className="text-white/40 text-xs">Trips (optional)</span>
+              <span className="text-white/40 text-xs">Trips</span>
               <button
                 onClick={cycleTrips}
-                className="w-20 h-20 rounded-full flex flex-col items-center justify-center cursor-pointer transition-all"
+                className="w-16 h-16 rounded-full flex flex-col items-center justify-center cursor-pointer transition-all"
                 style={{
                   border: `2px dashed ${tripsBet > 0 ? '#8e44ad' : 'rgba(255,255,255,0.2)'}`,
                   backgroundColor: tripsBet > 0 ? 'rgba(142,68,173,0.1)' : 'transparent',
                 }}
               >
-                <span className="text-white/40 text-[10px] uppercase">TRIPS</span>
+                <span className="text-white/40 text-[9px] uppercase">TRIPS</span>
                 {tripsBet > 0 && (
-                  <span className="text-white font-bold text-sm">{formatCents(tripsBet)}</span>
+                  <span className="text-white font-bold text-xs">{formatCents(tripsBet)}</span>
                 )}
               </button>
             </div>
@@ -320,19 +322,19 @@ export default function UTHGame() {
           <ChipSelector />
 
           {chipStack.length > 0 && (
-            <div className="flex items-center gap-3">
-              <button onClick={removeLastChip} className="btn-secondary px-4 py-2 text-sm">
+            <div className="flex items-center gap-2">
+              <button onClick={removeLastChip} className="btn-secondary px-3 py-1.5 text-xs">
                 UNDO
               </button>
-              <button onClick={clearBet} className="btn-secondary px-4 py-2 text-sm">
+              <button onClick={clearBet} className="btn-secondary px-3 py-1.5 text-xs">
                 CLEAR
               </button>
             </div>
           )}
 
           <div className="text-center">
-            <span className="text-white/50 text-sm">
-              Total: Ante {formatCents(currentBet)} + Blind {formatCents(currentBet)}
+            <span className="text-white/50 text-xs">
+              Ante {formatCents(currentBet)} + Blind {formatCents(currentBet)}
               {tripsBet > 0 ? ` + Trips ${formatCents(tripsBet)}` : ''}
               {' = '}
               <span className="text-casino-gold font-bold">

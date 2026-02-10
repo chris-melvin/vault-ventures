@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import type { CardData } from '@shared/types';
 import { SUIT_SYMBOLS, SUIT_COLORS } from '../../lib/constants';
@@ -12,7 +13,7 @@ interface CardProps {
   /**
    * Controls whether the card face or back is displayed.
    * When false, the card back is shown. When it transitions to true,
-   * a smooth 3D flip animation reveals the face.
+   * a smooth scaleX squish animation reveals the face.
    * Defaults to true.
    */
   showFace?: boolean;
@@ -86,31 +87,40 @@ export default function Card({ card, index, delay = 0, size = 'md', showFace = t
   const isHidden = card.rank === '?';
   const faceVisible = showFace && !isHidden;
 
+  // State machine: displayFace tracks what's rendered, squeezed triggers the squish
+  const [displayFace, setDisplayFace] = useState(faceVisible);
+  const [squeezed, setSqueezed] = useState(false);
+
+  // When faceVisible changes, start the squeeze phase
+  useEffect(() => {
+    if (faceVisible !== displayFace && !squeezed) {
+      setSqueezed(true);
+    }
+  }, [faceVisible, displayFace, squeezed]);
+
+  // At the midpoint of the squish, swap content and expand
+  const handleAnimationComplete = () => {
+    if (squeezed) {
+      setDisplayFace(faceVisible);
+      setSqueezed(false);
+    }
+  };
+
   return (
     <motion.div
-      initial={{ x: 200, y: -100, opacity: 0 }}
-      animate={{ x: 0, y: 0, opacity: 1 }}
+      initial={{ x: 120, y: -60, opacity: 0, scale: 0.7, rotate: -5 }}
+      animate={{ x: 0, y: 0, opacity: 1, scale: 1, rotate: 0 }}
       transition={{ type: 'spring', damping: 20, stiffness: 200, delay }}
       className="relative"
-      style={{ zIndex: index, perspective: 800 }}
+      style={{ zIndex: index }}
     >
       <motion.div
         initial={false}
-        animate={{ rotateY: faceVisible ? 0 : 180 }}
-        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
-        style={{ transformStyle: 'preserve-3d' }}
+        animate={{ scaleX: squeezed ? 0 : 1 }}
+        transition={{ duration: 0.175, ease: squeezed ? 'easeIn' : 'easeOut' }}
+        onAnimationComplete={handleAnimationComplete}
       >
-        {/* Front face */}
-        <div style={{ backfaceVisibility: 'hidden' }}>
-          <CardFace card={card} size={size} />
-        </div>
-        {/* Back face */}
-        <div
-          className="absolute inset-0"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
-        >
-          <CardBack size={size} />
-        </div>
+        {displayFace ? <CardFace card={card} size={size} /> : <CardBack size={size} />}
       </motion.div>
     </motion.div>
   );

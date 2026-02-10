@@ -78,7 +78,7 @@ const WheelCanvas = forwardRef<WheelCanvasHandle, WheelCanvasProps>(({ size }, r
     ctx.font = 'bold 10px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SOLAIRE', cx, cy);
+    ctx.fillText('VAULT', cx, cy);
 
     // Outer ring
     ctx.beginPath();

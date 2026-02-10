@@ -55,18 +55,27 @@ export default function MarketPage() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleBuy = async (itemId: string) => {
+  const handleBuy = async (itemId: string, quantity: number = 1) => {
     try {
-      const result = await marketApi.buy(itemId, 1) as any;
+      const result = await marketApi.buy(itemId, quantity) as any;
       setBalance(result.new_balance_cents);
       if (result.new_achievements?.length) pushToasts(result.new_achievements);
       setRefreshKey((k) => k + 1);
     } catch {}
   };
 
-  const handleSell = async (inventoryId: number) => {
+  const handleSell = async (itemId: string) => {
     try {
-      const result = await marketApi.sell(inventoryId) as any;
+      const result = await marketApi.sellPosition(itemId) as any;
+      setBalance(result.new_balance_cents);
+      if (result.new_achievements?.length) pushToasts(result.new_achievements);
+      setRefreshKey((k) => k + 1);
+    } catch {}
+  };
+
+  const handleCollectRent = async () => {
+    try {
+      const result = await marketApi.collectRent() as any;
       setBalance(result.new_balance_cents);
       if (result.new_achievements?.length) pushToasts(result.new_achievements);
       setRefreshKey((k) => k + 1);
@@ -77,6 +86,7 @@ export default function MarketPage() {
     (sum, item) => sum + item.current_price_cents * item.quantity, 0
   );
   const totalProfitLoss = inventory.reduce((sum, item) => sum + item.profit_cents, 0);
+  const totalPendingRent = inventory.reduce((sum, item) => sum + item.pending_rent_cents, 0);
 
   return (
     <div className="min-h-screen bg-casino-black flex flex-col">
@@ -126,11 +136,27 @@ export default function MarketPage() {
                 Your portfolio is empty. Browse the market to buy items!
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {inventory.map((item) => (
-                  <PortfolioItem key={item.id} item={item} onSell={handleSell} />
-                ))}
-              </div>
+              <>
+                {totalPendingRent > 0 && (
+                  <div className="card-panel p-4 mb-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-emerald-400 font-bold text-sm">Rent Available</div>
+                      <div className="text-white/40 text-xs">Collect earnings from your properties</div>
+                    </div>
+                    <button
+                      onClick={handleCollectRent}
+                      className="btn-primary text-sm !py-2 !px-4 !bg-emerald-600 hover:!bg-emerald-500"
+                    >
+                      Collect {formatCents(totalPendingRent)}
+                    </button>
+                  </div>
+                )}
+                <div className="grid grid-cols-1 gap-3">
+                  {inventory.map((item) => (
+                    <PortfolioItem key={item.id} item={item} onSell={handleSell} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         ) : (

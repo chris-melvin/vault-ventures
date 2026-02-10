@@ -37,7 +37,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-10">
           <h1 className="text-5xl font-bold text-casino-gold tracking-[0.2em] mb-2">
-            SOLAIRE
+            VAULT VENTURES
           </h1>
           <div className="w-24 h-0.5 bg-casino-gold/30 mx-auto mb-3" />
           <p className="text-white/40 text-sm tracking-wider uppercase">Premium Gaming Suite</p>

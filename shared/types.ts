@@ -343,6 +343,7 @@ export interface MarketItemWithPrice {
   base_price_cents: number;
   volatility: number;
   rarity: MarketRarity;
+  rent_rate: number;
   current_price_cents: number;
   previous_price_cents: number;
   trend_percent: number;
@@ -395,6 +396,14 @@ export interface InventoryItem {
   current_price_cents: number;
   profit_cents: number;
   purchased_at: number;
+  rent_rate: number;
+  pending_rent_cents: number;
+}
+
+export interface RentCollectionResult {
+  total_rent_cents: number;
+  properties_collected: number;
+  new_balance_cents: number;
 }
 
 export interface MarketTransaction {
@@ -405,6 +414,56 @@ export interface MarketTransaction {
   quantity: number;
   price_cents: number;
   timestamp: number;
+}
+
+// ============ Pinball Slots ============
+export type PinballSymbol = 'cherry' | 'lemon' | 'bell' | 'star' | 'seven' | 'diamond' | 'pinball';
+
+export const PINBALL_SYMBOLS: PinballSymbol[] = ['cherry', 'lemon', 'bell', 'star', 'seven', 'diamond', 'pinball'];
+
+export const PINBALL_REEL_LENGTH = 22;
+
+export const PINBALL_REEL_STRIPS: PinballSymbol[][] = [
+  // Reel 1: No pinball symbol
+  ['cherry', 'lemon', 'bell', 'cherry', 'star', 'lemon', 'cherry', 'bell', 'lemon', 'cherry', 'seven', 'lemon', 'cherry', 'bell', 'star', 'cherry', 'lemon', 'diamond', 'cherry', 'bell', 'lemon', 'cherry'],
+  // Reel 2: No pinball symbol
+  ['lemon', 'cherry', 'bell', 'lemon', 'cherry', 'star', 'cherry', 'lemon', 'bell', 'cherry', 'lemon', 'seven', 'cherry', 'bell', 'cherry', 'lemon', 'star', 'cherry', 'diamond', 'bell', 'cherry', 'lemon'],
+  // Reel 3: Has pinball symbol (~1/22 chance)
+  ['cherry', 'bell', 'lemon', 'cherry', 'star', 'lemon', 'cherry', 'bell', 'cherry', 'lemon', 'seven', 'cherry', 'lemon', 'bell', 'cherry', 'star', 'lemon', 'cherry', 'diamond', 'bell', 'cherry', 'pinball'],
+];
+
+export const PINBALL_PAYOUTS: Record<PinballSymbol, number> = {
+  cherry: 5,
+  lemon: 10,
+  bell: 20,
+  star: 40,
+  seven: 100,
+  diamond: 500,
+  pinball: 0, // triggers bonus, no direct payout
+};
+
+export const PINBALL_POCKET_MULTIPLIERS: number[] = [2, 5, 10, 25, 100, 25, 10, 5, 2];
+
+export interface PinballBonusBallResult {
+  pocket_index: number;
+  multiplier: number;
+  path: { x: number; y: number }[];
+}
+
+export interface PinballSpinResult extends GameResult {
+  reel_stops: number[];
+  symbols: PinballSymbol[];  // center row (payline) symbols
+  all_symbols: PinballSymbol[][]; // all visible symbols per reel
+  win_multiplier: number;
+  winning_symbol: PinballSymbol | null;
+  bonus_triggered: boolean;
+  bonus?: {
+    balls_count: number;
+    balls: PinballBonusBallResult[];
+    total_bonus_multiplier: number;
+    bonus_payout_cents: number;
+  };
+  bet_level: number;
 }
 
 // ============ Error ============

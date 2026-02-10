@@ -1,8 +1,8 @@
 import { Router, Response } from 'express';
 import { AuthRequest, authMiddleware } from '../middleware/auth.js';
 import {
-  getMarketItems, getMarketItemDetail, buyItem, sellItem,
-  getUserInventory, getMarketHistory, getPriceHistoryForItem,
+  getMarketItems, getMarketItemDetail, buyItem, sellItem, sellPosition,
+  getUserInventory, getMarketHistory, getPriceHistoryForItem, collectRent,
 } from '../services/marketService.js';
 import { checkAchievements } from '../services/achievementService.js';
 
@@ -50,6 +50,31 @@ router.post('/sell', authMiddleware, (req: AuthRequest, res: Response): void => 
       return;
     }
     const result = sellItem(req.userId!, inventory_id);
+    const newAchievements = checkAchievements(req.userId!);
+    res.json({ ...result, new_achievements: newAchievements.length > 0 ? newAchievements : undefined });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/sell-position', authMiddleware, (req: AuthRequest, res: Response): void => {
+  try {
+    const { item_id } = req.body;
+    if (!item_id) {
+      res.status(400).json({ error: 'item_id is required' });
+      return;
+    }
+    const result = sellPosition(req.userId!, item_id);
+    const newAchievements = checkAchievements(req.userId!);
+    res.json({ ...result, new_achievements: newAchievements.length > 0 ? newAchievements : undefined });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/collect-rent', authMiddleware, (req: AuthRequest, res: Response): void => {
+  try {
+    const result = collectRent(req.userId!);
     const newAchievements = checkAchievements(req.userId!);
     res.json({ ...result, new_achievements: newAchievements.length > 0 ? newAchievements : undefined });
   } catch (err: any) {
