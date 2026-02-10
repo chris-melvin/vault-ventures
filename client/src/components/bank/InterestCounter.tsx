@@ -37,7 +37,7 @@ export default function InterestCounter({ bankBalance, lastInterestAt }: Props) 
       <div className="text-green-400 font-bold text-lg">
         +{formatCents(pending)}
       </div>
-      <div className="text-white/30 text-xs">0.5% per hour</div>
+      <div className="text-white/30 text-xs">0.1% per 12 hours</div>
     </div>
   );
 }
