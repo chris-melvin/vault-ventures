@@ -1,5 +1,6 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
+import { updateStats, checkAchievements } from './achievementService.js';
 import { SlotSymbol, SLOT_SYMBOLS, SLOT_PAYOUTS, SlotsSpinResult } from '../../../shared/types.ts';
 
 const REEL_LENGTH = 16;
@@ -137,15 +138,22 @@ export function spinSlots(userId: number, amountCents: number): SlotsSpinResult 
 
   const newBalance = run();
 
+  // Achievement tracking
+  updateStats(userId, { wagered: amountCents, won: payoutCents, isWin: payoutCents > 0, gameType: 'slots' });
+  const newAchievements = checkAchievements(userId);
+
   return {
     reel_stops: reelStops,
     symbols: allSymbols,
     paylines,
     is_near_miss: isNearMiss,
     payout_cents: payoutCents,
-    new_balance_cents: newBalance,
+    new_balance_cents: newAchievements.length > 0
+      ? (db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number }).balance_cents
+      : newBalance,
     server_seed_hash: hashSeed(serverSeed),
     client_seed: clientSeed,
     nonce,
+    new_achievements: newAchievements.length > 0 ? newAchievements : undefined,
   };
 }

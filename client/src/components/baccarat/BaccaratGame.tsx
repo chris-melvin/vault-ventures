@@ -5,6 +5,7 @@ import TableResult from '../shared/TableResult';
 import BaccaratRoads from './BaccaratRoads';
 import BaccaratBettingTable from './BaccaratBettingTable';
 import { useGameStore } from '../../stores/useGameStore';
+import { useMetaStore } from '../../stores/useMetaStore';
 import { useCardReveal, type RevealStep } from '../../hooks/useCardReveal';
 import { BACCARAT_TIMINGS } from '../../lib/dealingTimings';
 import { baccarat as bacApi } from '../../lib/api';
@@ -18,6 +19,7 @@ export default function BaccaratGame() {
   const [showResult, setShowResult] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
   const { currentBet, chipStack, addChip, removeLastChip, clearBet, setBalance } = useGameStore();
+  const pushToasts = useMetaStore((s) => s.pushToasts);
   const { positions, isAnimating, startReveal, skipToEnd, reset } = useCardReveal();
 
   const buildDealSteps = useCallback((res: BaccaratResult): RevealStep[] => {
@@ -59,6 +61,7 @@ export default function BaccaratGame() {
       const res = await bacApi.deal(currentBet, betType);
       setResult(res);
       setBalance(res.new_balance_cents);
+      if (res.new_achievements?.length) pushToasts(res.new_achievements);
 
       const steps = buildDealSteps(res);
       startReveal(steps, {

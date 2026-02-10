@@ -3,6 +3,7 @@ import Reel from './Reel';
 import BetControls from '../shared/BetControls';
 import ResultOverlay from '../shared/ResultOverlay';
 import { useGameStore } from '../../stores/useGameStore';
+import { useMetaStore } from '../../stores/useMetaStore';
 import { slots as slotsApi } from '../../lib/api';
 import { formatCents, SLOT_SYMBOL_EMOJIS } from '../../lib/constants';
 import type { SlotsSpinResult } from '@shared/types';
@@ -16,6 +17,7 @@ export default function SlotsGame() {
   const [showResult, setShowResult] = useState(false);
   const stoppedCountRef = useRef(0);
   const { currentBet, setBalance, setSpinning: setStoreSpinning } = useGameStore();
+  const pushToasts = useMetaStore((s) => s.pushToasts);
 
   const handleReelStopped = useCallback(() => {
     stoppedCountRef.current++;
@@ -23,12 +25,13 @@ export default function SlotsGame() {
       setSpinning(false);
       setStoreSpinning(false);
       setBalance(result.new_balance_cents);
+      if (result.new_achievements?.length) pushToasts(result.new_achievements);
 
       if (result.payout_cents > 0 || result.paylines.length > 0) {
         setTimeout(() => setShowResult(true), 200);
       }
     }
-  }, [result, setBalance, setStoreSpinning]);
+  }, [result, setBalance, setStoreSpinning, pushToasts]);
 
   const handleSpin = async () => {
     if (spinning) return;

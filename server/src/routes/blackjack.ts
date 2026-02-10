@@ -7,7 +7,8 @@ const router = Router();
 
 router.post('/deal', authMiddleware, validateBet, (req: AuthRequest, res: Response): void => {
   try {
-    const result = dealBlackjack(req.userId!, req.body.amount_cents);
+    const numHands = Math.min(3, Math.max(1, Math.floor(Number(req.body.num_hands) || 1)));
+    const result = dealBlackjack(req.userId!, req.body.amount_cents, numHands);
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });

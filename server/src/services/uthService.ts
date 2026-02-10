@@ -1,9 +1,10 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
+import { updateStats, checkAchievements } from './achievementService.js';
 import {
   CardData, Suit, Rank,
   UTHPhase, UTHAction, UTHState, UTHResult, UTHBetBreakdown,
-  PokerHandRank, BLIND_PAY_TABLE, TRIPS_PAY_TABLE,
+  PokerHandRank, BLIND_PAY_TABLE, TRIPS_PAY_TABLE, AchievementUnlock,
 } from '../../../shared/types.ts';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -328,6 +329,12 @@ function resolveShowdown(sessionId: string, session: UTHSession): UTHResult {
   }
 
   logGame(session);
+
+  // Achievement tracking
+  const totalWagered = ante_cents + blind_cents + trips_cents + play_cents;
+  updateStats(session.userId, { wagered: totalWagered, won: totalPayout, isWin: outcome === 'player_wins', gameType: 'uth' });
+  const newAchievements = checkAchievements(session.userId);
+
   sessions.delete(sessionId);
 
   return {
@@ -339,7 +346,8 @@ function resolveShowdown(sessionId: string, session: UTHSession): UTHResult {
     trips_payout_cents: tripsPayout,
     total_payout_cents: totalPayout,
     new_balance_cents: getBalance(session.userId),
-  };
+    _newAchievements: newAchievements.length > 0 ? newAchievements : undefined,
+  } as UTHResult & { _newAchievements?: AchievementUnlock[] };
 }
 
 function logGame(session: UTHSession): void {
@@ -419,8 +427,10 @@ export function uthAction(sessionId: string, userId: number, action: UTHAction):
         session.revealedCommunity = 5;
         session.phase = 'showdown';
         const state = buildState(sessionId, session);
-        state.result = resolveShowdown(sessionId, session);
-        state.new_balance_cents = state.result.new_balance_cents;
+        const rawResult = resolveShowdown(sessionId, session) as UTHResult & { _newAchievements?: AchievementUnlock[] };
+        state.result = rawResult;
+        state.new_balance_cents = rawResult.new_balance_cents;
+        state.new_achievements = rawResult._newAchievements;
         return state;
       }
       // Check -> reveal flop
@@ -438,8 +448,10 @@ export function uthAction(sessionId: string, userId: number, action: UTHAction):
         session.revealedCommunity = 5;
         session.phase = 'showdown';
         const state = buildState(sessionId, session);
-        state.result = resolveShowdown(sessionId, session);
-        state.new_balance_cents = state.result.new_balance_cents;
+        const rawResult = resolveShowdown(sessionId, session) as UTHResult & { _newAchievements?: AchievementUnlock[] };
+        state.result = rawResult;
+        state.new_balance_cents = rawResult.new_balance_cents;
+        state.new_achievements = rawResult._newAchievements;
         return state;
       }
       // Check -> reveal turn + river
@@ -455,8 +467,10 @@ export function uthAction(sessionId: string, userId: number, action: UTHAction):
         session.bets.play_cents = playBet;
         session.phase = 'showdown';
         const state = buildState(sessionId, session);
-        state.result = resolveShowdown(sessionId, session);
-        state.new_balance_cents = state.result.new_balance_cents;
+        const rawResult = resolveShowdown(sessionId, session) as UTHResult & { _newAchievements?: AchievementUnlock[] };
+        state.result = rawResult;
+        state.new_balance_cents = rawResult.new_balance_cents;
+        state.new_achievements = rawResult._newAchievements;
         return state;
       }
       // Fold
@@ -475,6 +489,12 @@ export function uthAction(sessionId: string, userId: number, action: UTHAction):
       }
 
       logGame(session);
+
+      // Achievement tracking for fold
+      const foldWagered = session.bets.ante_cents + session.bets.blind_cents + session.bets.trips_cents;
+      updateStats(session.userId, { wagered: foldWagered, won: tripsPayout, isWin: false, gameType: 'uth' });
+      const foldAchievements = checkAchievements(session.userId);
+
       sessions.delete(sessionId);
 
       const allPlayerForName = [...session.playerHand, ...session.communityCards];
@@ -506,6 +526,7 @@ export function uthAction(sessionId: string, userId: number, action: UTHAction):
         dealer_hand_name: dealerEvalForName.name,
         result,
         new_balance_cents: result.new_balance_cents,
+        new_achievements: foldAchievements.length > 0 ? foldAchievements : undefined,
       };
     }
 

@@ -1,14 +1,23 @@
+import { useEffect } from 'react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGameStore } from '../../stores/useGameStore';
 import { useAudioStore } from '../../stores/useAudioStore';
+import { useMetaStore } from '../../stores/useMetaStore';
 import { formatCents } from '../../lib/constants';
+import { bank } from '../../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const { username, logout } = useAuthStore();
   const balance = useGameStore((s) => s.balance_cents);
   const { muted, toggleMute } = useAudioStore();
+  const bankAccount = useMetaStore((s) => s.bankAccount);
+  const setBankAccount = useMetaStore((s) => s.setBankAccount);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    bank.getAccount().then(setBankAccount).catch(() => {});
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -27,11 +36,23 @@ export default function Header() {
 
         <div className="flex items-center gap-6">
           <div className="card-panel px-4 py-2 gold-glow">
-            <span className="text-xs text-white/50 block leading-none">BALANCE</span>
+            <span className="text-xs text-white/50 block leading-none">WALLET</span>
             <span className="text-casino-gold font-bold text-lg leading-tight">
               {formatCents(balance)}
             </span>
           </div>
+
+          {bankAccount && bankAccount.balance_cents > 0 && (
+            <button
+              onClick={() => navigate('/bank')}
+              className="card-panel px-3 py-2 hover:border-casino-gold/30 transition-colors cursor-pointer"
+            >
+              <span className="text-xs text-white/50 block leading-none">BANK</span>
+              <span className="text-green-400 font-bold text-sm leading-tight">
+                {formatCents(bankAccount.balance_cents)}
+              </span>
+            </button>
+          )}
 
           <button
             onClick={toggleMute}

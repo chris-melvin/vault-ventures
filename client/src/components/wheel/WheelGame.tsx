@@ -5,6 +5,7 @@ import BettingBoard from './BettingBoard';
 import ResultOverlay from '../shared/ResultOverlay';
 import GameHistory from '../shared/GameHistory';
 import { useGameStore } from '../../stores/useGameStore';
+import { useMetaStore } from '../../stores/useMetaStore';
 import { wheel as wheelApi } from '../../lib/api';
 import { getSymbolConfig, WHEEL_SYMBOL_CONFIGS, type WheelSymbol, type GameHistoryEntry } from '@shared/types';
 import { formatCents } from '../../lib/constants';
@@ -62,6 +63,7 @@ export default function WheelGame() {
   const animRef = useRef<number>(0);
   const canvasRef = useRef<WheelCanvasHandle>(null);
   const { setBalance, setSpinning: setStoreSpinning, balance_cents } = useGameStore();
+  const pushToasts = useMetaStore((s) => s.pushToasts);
 
   const animate = useCallback(() => {
     const state = physicsRef.current;
@@ -126,6 +128,7 @@ export default function WheelGame() {
 
         // Set authoritative balance from server
         setBalance(result.new_balance_cents);
+        if (result.new_achievements?.length) pushToasts(result.new_achievements);
         setSpinning(false);
         setStoreSpinning(false);
         setWinningSymbol(result.winning_symbol);

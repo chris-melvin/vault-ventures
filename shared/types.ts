@@ -31,6 +31,7 @@ export interface GameResult {
   server_seed_hash: string;
   client_seed: string;
   nonce: number;
+  new_achievements?: AchievementUnlock[];
 }
 
 // ============ Wheel ============
@@ -128,7 +129,9 @@ export interface CardData {
 
 export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'surrender' | 'insurance_yes' | 'insurance_no';
 
-export interface BlackjackDealRequest extends BetRequest {}
+export interface BlackjackDealRequest extends BetRequest {
+  num_hands?: number;
+}
 
 export interface BlackjackActionRequest {
   session_id: string;
@@ -162,6 +165,7 @@ export interface BlackjackState {
   status: 'playing' | 'dealer_turn' | 'player_bust' | 'dealer_bust' | 'player_win' | 'dealer_win' | 'push' | 'blackjack';
   can_double: boolean;
   payout_cents: number;
+  new_achievements?: AchievementUnlock[];
 }
 
 // ============ Baccarat ============
@@ -219,6 +223,7 @@ export interface UTHState {
   dealer_hand_name?: string;
   result?: UTHResult;
   new_balance_cents: number;
+  new_achievements?: AchievementUnlock[];
 }
 
 export interface UTHResult {
@@ -256,6 +261,149 @@ export interface GameHistoryEntry {
   id: number;
   game_type: string;
   result_data: any;
+  timestamp: number;
+}
+
+// ============ Bank ============
+export interface BankAccountState {
+  balance_cents: number;
+  wallet_balance_cents: number;
+  last_interest_at: number;
+  total_interest_earned_cents: number;
+  pending_interest_cents: number;
+}
+
+export interface BankDepositRequest {
+  amount_cents: number;
+}
+
+export interface BankWithdrawRequest {
+  amount_cents: number;
+}
+
+export interface BankTransaction {
+  id: number;
+  amount_cents: number;
+  type: 'DEPOSIT' | 'WITHDRAW' | 'INTEREST';
+  balance_after_cents: number;
+  timestamp: number;
+}
+
+// ============ Achievements ============
+export type AchievementCategory = 'wealth' | 'gambling' | 'streak' | 'collection' | 'bank';
+
+export interface Achievement {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: AchievementCategory;
+  threshold: number;
+  reward_cents: number;
+  unlocked: boolean;
+  unlocked_at?: number;
+}
+
+export interface AchievementUnlock {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  reward_cents: number;
+}
+
+export interface UserStats {
+  total_wagered_cents: number;
+  total_won_cents: number;
+  biggest_win_cents: number;
+  total_games_played: number;
+  current_win_streak: number;
+  best_win_streak: number;
+  current_loss_streak: number;
+  worst_loss_streak: number;
+  games_per_type: Record<string, number>;
+  peak_balance_cents: number;
+}
+
+export interface AchievementsResponse {
+  achievements: Achievement[];
+  stats: UserStats;
+}
+
+// ============ Market ============
+export type MarketCategory = 'collectible' | 'stock' | 'property' | 'vehicle';
+export type MarketRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+export interface MarketItemWithPrice {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: MarketCategory;
+  base_price_cents: number;
+  volatility: number;
+  rarity: MarketRarity;
+  current_price_cents: number;
+  previous_price_cents: number;
+  trend_percent: number;
+}
+
+export interface MarketItemDetail extends MarketItemWithPrice {
+  price_history: PricePoint[];
+}
+
+export interface PricePoint {
+  timestamp: number;
+  price_cents: number;
+}
+
+export interface MarketBuyRequest {
+  item_id: string;
+  quantity: number;
+}
+
+export interface MarketBuyResult {
+  item_id: string;
+  quantity: number;
+  price_cents: number;
+  total_cost_cents: number;
+  new_balance_cents: number;
+}
+
+export interface MarketSellRequest {
+  inventory_id: number;
+}
+
+export interface MarketSellResult {
+  item_id: string;
+  quantity: number;
+  price_cents: number;
+  total_revenue_cents: number;
+  profit_cents: number;
+  new_balance_cents: number;
+}
+
+export interface InventoryItem {
+  id: number;
+  item_id: string;
+  name: string;
+  icon: string;
+  category: MarketCategory;
+  rarity: MarketRarity;
+  quantity: number;
+  purchased_price_cents: number;
+  current_price_cents: number;
+  profit_cents: number;
+  purchased_at: number;
+}
+
+export interface MarketTransaction {
+  id: number;
+  item_id: string;
+  item_name: string;
+  action: 'BUY' | 'SELL';
+  quantity: number;
+  price_cents: number;
   timestamp: number;
 }
 

@@ -11,6 +11,17 @@ import type {
   UTHState,
   UTHAction,
   GameHistoryEntry,
+  BankAccountState,
+  BankTransaction,
+  AchievementsResponse,
+  UserStats,
+  MarketItemWithPrice,
+  MarketItemDetail,
+  MarketBuyResult,
+  MarketSellResult,
+  InventoryItem,
+  MarketTransaction,
+  PricePoint,
 } from '@shared/types';
 
 // Initialize token from localStorage immediately so it's available before any effects run
@@ -98,10 +109,10 @@ export const slots = {
 
 // Blackjack
 export const blackjack = {
-  deal: (amount_cents: number) =>
+  deal: (amount_cents: number, num_hands: number = 1) =>
     request<BlackjackState>('/blackjack/deal', {
       method: 'POST',
-      body: JSON.stringify({ amount_cents }),
+      body: JSON.stringify({ amount_cents, num_hands }),
     }),
   hit: (session_id: string) =>
     request<BlackjackState>('/blackjack/hit', {
@@ -162,4 +173,50 @@ export const uth = {
       method: 'POST',
       body: JSON.stringify({ session_id, action }),
     }),
+};
+
+// Bank
+export const bank = {
+  getAccount: () => request<BankAccountState>('/bank/account'),
+  deposit: (amount_cents: number) =>
+    request<BankAccountState>('/bank/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ amount_cents }),
+    }),
+  withdraw: (amount_cents: number) =>
+    request<BankAccountState>('/bank/withdraw', {
+      method: 'POST',
+      body: JSON.stringify({ amount_cents }),
+    }),
+  history: (limit = 20) =>
+    request<BankTransaction[]>(`/bank/history?limit=${limit}`),
+};
+
+// Achievements
+export const achievements = {
+  getAll: () => request<AchievementsResponse>('/achievements'),
+  getStats: () => request<UserStats>('/achievements/stats'),
+};
+
+// Market
+export const market = {
+  getItems: (category?: string) =>
+    request<MarketItemWithPrice[]>(`/market/items${category ? `?category=${category}` : ''}`),
+  getItem: (id: string) =>
+    request<MarketItemDetail>(`/market/items/${id}`),
+  buy: (item_id: string, quantity = 1) =>
+    request<MarketBuyResult>('/market/buy', {
+      method: 'POST',
+      body: JSON.stringify({ item_id, quantity }),
+    }),
+  sell: (inventory_id: number) =>
+    request<MarketSellResult>('/market/sell', {
+      method: 'POST',
+      body: JSON.stringify({ inventory_id }),
+    }),
+  inventory: () => request<InventoryItem[]>('/market/inventory'),
+  history: (limit = 20) =>
+    request<MarketTransaction[]>(`/market/history?limit=${limit}`),
+  prices: (id: string, periods = 24) =>
+    request<PricePoint[]>(`/market/prices/${id}?periods=${periods}`),
 };

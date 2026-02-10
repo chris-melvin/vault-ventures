@@ -1,5 +1,6 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
+import { updateStats, checkAchievements } from './achievementService.js';
 import { WHEEL_SEGMENTS, WHEEL_SEGMENT_COUNT, getSymbolConfig, type WheelSymbol, type WheelSpinResult } from '../../../shared/types.ts';
 
 export function spinWheel(userId: number, bets: Partial<Record<WheelSymbol, number>>): WheelSpinResult {
@@ -48,15 +49,22 @@ export function spinWheel(userId: number, bets: Partial<Record<WheelSymbol, numb
 
   const newBalance = run();
 
+  // Achievement tracking
+  updateStats(userId, { wagered: totalBetCents, won: payoutCents, isWin: payoutCents > 0, gameType: 'wheel' });
+  const newAchievements = checkAchievements(userId);
+
   return {
     target_segment: targetSegment,
     winning_symbol: winningSymbol,
     bets,
     total_bet_cents: totalBetCents,
     payout_cents: payoutCents,
-    new_balance_cents: newBalance,
+    new_balance_cents: newAchievements.length > 0
+      ? (db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number }).balance_cents
+      : newBalance,
     server_seed_hash: hashSeed(serverSeed),
     client_seed: clientSeed,
     nonce,
+    new_achievements: newAchievements.length > 0 ? newAchievements : undefined,
   };
 }

@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
-import { CardData, Suit, Rank, BlackjackState, BlackjackAction, BlackjackHandState } from '../../../shared/types.ts';
+import { updateStats, checkAchievements } from './achievementService.js';
+import { CardData, Suit, Rank, BlackjackState, BlackjackAction, BlackjackHandState, AchievementUnlock } from '../../../shared/types.ts';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
 const RANKS: Rank[] = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
@@ -26,6 +27,7 @@ interface Session {
   serverSeed: string;
   clientSeed: string;
   nonce: number;
+  newAchievements?: AchievementUnlock[];
 }
 
 const sessions = new Map<string, Session>();
@@ -103,15 +105,14 @@ function computeAvailableActions(session: Session): BlackjackAction[] {
   if (
     hand.cards.length === 2 &&
     !hand.isFromSplit &&
-    session.hands.length === 1 &&
     hand.cards[0].rank === hand.cards[1].rank &&
     user.balance_cents >= hand.betCents
   ) {
     actions.push('split');
   }
 
-  // Surrender: only with initial 2 cards, not from split, first action only
-  if (hand.cards.length === 2 && !hand.isFromSplit && session.hands.length === 1) {
+  // Surrender: only with initial 2 cards, not from split
+  if (hand.cards.length === 2 && !hand.isFromSplit) {
     actions.push('surrender');
   }
 
@@ -121,8 +122,11 @@ function computeAvailableActions(session: Session): BlackjackAction[] {
 // ============ Helper: advance to next hand or dealer turn ============
 
 function advanceHand(session: Session): void {
-  const nextIdx = session.activeHandIndex + 1;
-  if (nextIdx < session.hands.length && session.hands[nextIdx].status === 'playing') {
+  let nextIdx = session.activeHandIndex + 1;
+  while (nextIdx < session.hands.length && session.hands[nextIdx].status !== 'playing') {
+    nextIdx++;
+  }
+  if (nextIdx < session.hands.length) {
     session.activeHandIndex = nextIdx;
   } else {
     // All hands done - proceed to dealer turn
@@ -206,6 +210,12 @@ function resolveGame(session: Session): void {
   }
 
   logGame(session);
+
+  // Achievement tracking
+  const totalWagered = session.hands.reduce((sum, h) => sum + h.betCents, 0) + session.insuranceBetCents;
+  const isWin = totalPayoutCents > totalWagered;
+  updateStats(session.userId, { wagered: totalWagered, won: totalPayoutCents, isWin, gameType: 'blackjack' });
+  session.newAchievements = checkAchievements(session.userId);
 }
 
 // ============ Helper: build response state ============
@@ -289,40 +299,56 @@ function buildBlackjackState(sessionId: string, session: Session): BlackjackStat
     status: legacyStatus,
     can_double: activeHand.cards.length === 2 && activeHand.status === 'playing',
     payout_cents: totalPayoutCents,
+    new_achievements: session.newAchievements && session.newAchievements.length > 0 ? session.newAchievements : undefined,
   };
 }
 
 // ============ Main functions ============
 
-export function dealBlackjack(userId: number, betCents: number): BlackjackState {
+export function dealBlackjack(userId: number, betCents: number, numHands: number = 1): BlackjackState {
   const serverSeed = generateSeed();
   const clientSeed = generateSeed();
   const nonce = Date.now();
 
-  // Deduct bet
+  const totalBet = betCents * numHands;
+
+  // Deduct total bet
   db.prepare('UPDATE users SET balance_cents = balance_cents - ? WHERE id = ?')
-    .run(betCents, userId);
+    .run(totalBet, userId);
   db.prepare('INSERT INTO transactions (user_id, amount_cents, type, game_type) VALUES (?, ?, ?, ?)')
-    .run(userId, -betCents, 'BET', 'blackjack');
+    .run(userId, -totalBet, 'BET', 'blackjack');
 
   const deck = createDeck();
   shuffleDeck(deck);
 
-  const playerHand = [dealCard(deck), dealCard(deck)];
-  const dealerHand = [dealCard(deck, true), dealCard(deck, false)];
+  // Deal N player hands (first card each)
+  const hands: HandSession[] = [];
+  for (let i = 0; i < numHands; i++) {
+    hands.push({
+      cards: [dealCard(deck)],
+      betCents,
+      status: 'playing',
+      isFromSplit: false,
+    });
+  }
+
+  // Dealer first card
+  const dealerHand = [dealCard(deck, true)];
+
+  // Second card to each player hand
+  for (let i = 0; i < numHands; i++) {
+    hands[i].cards.push(dealCard(deck));
+  }
+
+  // Dealer second card (hole card)
+  dealerHand.push(dealCard(deck, false));
 
   const sessionId = generateSeed().substring(0, 16);
-  const playerVal = handValue(playerHand);
 
   const session: Session = {
     userId,
     deck,
-    hands: [{
-      cards: playerHand,
-      betCents,
-      status: 'playing',
-      isFromSplit: false,
-    }],
+    hands,
     activeHandIndex: 0,
     dealerHand,
     gamePhase: 'playing',
@@ -333,29 +359,59 @@ export function dealBlackjack(userId: number, betCents: number): BlackjackState 
     nonce,
   };
 
-  // Check for natural blackjack
-  if (playerVal === 21) {
-    session.hands[0].status = 'blackjack';
+  // Check each hand for natural blackjack
+  for (const hand of hands) {
+    if (handValue(hand.cards) === 21) {
+      hand.status = 'blackjack';
+    }
+  }
+
+  // If all hands are natural blackjack, resolve immediately
+  const allNatural = hands.every(h => h.status === 'blackjack');
+  if (allNatural) {
     dealerHand[1].faceUp = true;
     const dealerVal = handValue(dealerHand);
-    if (dealerVal === 21) {
-      // Push
-      session.gamePhase = 'resolved';
+    session.gamePhase = 'resolved';
+
+    let totalPayout = 0;
+    for (const hand of hands) {
+      if (dealerVal === 21) {
+        // Push
+        totalPayout += hand.betCents;
+      } else {
+        // Blackjack 3:2 payout
+        totalPayout += Math.floor(hand.betCents * 2.5);
+      }
+    }
+    if (totalPayout > 0) {
       db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?')
-        .run(betCents, userId);
-    } else {
-      // Blackjack 3:2 payout
-      session.gamePhase = 'resolved';
-      const payout = Math.floor(betCents * 2.5);
-      db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?')
-        .run(payout, userId);
-      db.prepare('INSERT INTO transactions (user_id, amount_cents, type, game_type) VALUES (?, ?, ?, ?)')
-        .run(userId, payout, 'WIN', 'blackjack');
+        .run(totalPayout, userId);
+      if (totalPayout > totalBet) {
+        db.prepare('INSERT INTO transactions (user_id, amount_cents, type, game_type) VALUES (?, ?, ?, ?)')
+          .run(userId, totalPayout, 'WIN', 'blackjack');
+      }
     }
     logGame(session);
-  } else if (dealerHand[0].rank === 'A') {
-    // Dealer shows Ace - offer insurance
-    session.gamePhase = 'insurance_prompt';
+
+    // Achievement tracking for natural blackjack resolve
+    updateStats(userId, { wagered: totalBet, won: totalPayout, isWin: totalPayout > totalBet, gameType: 'blackjack' });
+    session.newAchievements = checkAchievements(userId);
+  } else {
+    // Find first playable hand
+    let firstPlayable = 0;
+    while (firstPlayable < hands.length && hands[firstPlayable].status !== 'playing') {
+      firstPlayable++;
+    }
+    session.activeHandIndex = firstPlayable;
+
+    if (firstPlayable >= hands.length) {
+      // All hands are blackjack but we already handled that above — shouldn't reach here
+      dealerPlay(session);
+      resolveGame(session);
+    } else if (dealerHand[0].rank === 'A') {
+      // Dealer shows Ace - offer insurance
+      session.gamePhase = 'insurance_prompt';
+    }
   }
 
   sessions.set(sessionId, session);
@@ -438,7 +494,7 @@ export function playerSplit(sessionId: string, userId: number): BlackjackState {
   const hand = session.hands[session.activeHandIndex];
   if (!hand || hand.status !== 'playing') throw new Error('Hand not playing');
   if (hand.cards.length !== 2 || hand.cards[0].rank !== hand.cards[1].rank) throw new Error('Cannot split - cards must be same rank');
-  if (hand.isFromSplit || session.hands.length > 1) throw new Error('Cannot re-split');
+  if (hand.isFromSplit) throw new Error('Cannot re-split');
 
   // Check balance
   const user = db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number };
@@ -476,22 +532,20 @@ export function playerSplit(sessionId: string, userId: number): BlackjackState {
     hand2.status = 'standing';
   }
 
-  session.hands = [hand1, hand2];
-  session.activeHandIndex = 0;
+  const splitIdx = session.activeHandIndex;
+  session.hands.splice(splitIdx, 1, hand1, hand2);
+  session.activeHandIndex = splitIdx;
 
   // If split aces, auto-stand both and go to dealer
   if (isAces) {
-    dealerPlay(session);
-    resolveGame(session);
+    advanceHand(session);
   } else if (handValue(hand1.cards) === 21) {
     // First hand got 21, auto-stand
     hand1.status = 'standing';
-    // Move to second hand
-    session.activeHandIndex = 1;
+    session.activeHandIndex = splitIdx + 1;
     if (handValue(hand2.cards) === 21) {
       hand2.status = 'standing';
-      dealerPlay(session);
-      resolveGame(session);
+      advanceHand(session);
     }
   }
 
@@ -546,6 +600,11 @@ export function playerInsurance(sessionId: string, userId: number, accept: boole
           .run(userId, totalPayout, 'WIN', 'blackjack');
       }
       logGame(session);
+
+      // Achievement tracking
+      const totalWager = session.hands[0].betCents + insuranceCost;
+      updateStats(userId, { wagered: totalWager, won: totalPayout, isWin: totalPayout > totalWager, gameType: 'blackjack' });
+      session.newAchievements = checkAchievements(userId);
     } else {
       // Dealer doesn't have blackjack - insurance is lost, continue playing
       session.gamePhase = 'playing';
@@ -570,6 +629,11 @@ export function playerInsurance(sessionId: string, userId: number, accept: boole
       // else dealer wins
 
       logGame(session);
+
+      // Achievement tracking
+      const payout = playerVal === 21 ? session.hands[0].betCents : 0;
+      updateStats(userId, { wagered: session.hands[0].betCents, won: payout, isWin: false, gameType: 'blackjack' });
+      session.newAchievements = checkAchievements(userId);
     } else {
       // No dealer blackjack - continue playing
       session.gamePhase = 'playing';

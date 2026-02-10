@@ -5,6 +5,7 @@ import TableResult from '../shared/TableResult';
 import ChipSelector from '../shared/ChipSelector';
 import BettingCircle from '../shared/BettingCircle';
 import { useGameStore } from '../../stores/useGameStore';
+import { useMetaStore } from '../../stores/useMetaStore';
 import { useCardReveal, type RevealStep } from '../../hooks/useCardReveal';
 import { UTH_TIMINGS } from '../../lib/dealingTimings';
 import { uth as uthApi } from '../../lib/api';
@@ -18,6 +19,7 @@ export default function UTHGame() {
   const [showResult, setShowResult] = useState(false);
   const [tripsBet, setTripsBet] = useState(0);
   const { currentBet, chipStack, addChip, removeLastChip, clearBet, setBalance, balance_cents } = useGameStore();
+  const pushToasts = useMetaStore((s) => s.pushToasts);
   const { positions, isAnimating, startReveal, skipToEnd, reset } = useCardReveal();
   const prevPhaseRef = useRef<string | null>(null);
 
@@ -82,6 +84,7 @@ export default function UTHGame() {
       const result = await uthApi.deal(currentBet, tripsBet > 0 ? tripsBet : undefined);
       setGame(result);
       setBalance(result.new_balance_cents);
+      if (result.new_achievements?.length) pushToasts(result.new_achievements);
       prevPhaseRef.current = result.phase;
 
       const steps = buildDealSteps();
@@ -107,6 +110,7 @@ export default function UTHGame() {
       const result = await uthApi.action(game.session_id, action);
       setGame(result);
       setBalance(result.new_balance_cents);
+      if (result.new_achievements?.length) pushToasts(result.new_achievements);
 
       if (result.phase !== prevPhase) {
         // Phase changed - animate new cards

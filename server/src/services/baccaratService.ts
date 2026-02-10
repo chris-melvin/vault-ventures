@@ -1,5 +1,6 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
+import { updateStats, checkAchievements } from './achievementService.js';
 import { CardData, Suit, Rank, BaccaratBetType, BaccaratResult } from '../../../shared/types.ts';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -123,6 +124,11 @@ export function dealBaccarat(userId: number, betCents: number, betType: Baccarat
 
   const newBalance = run();
 
+  // Achievement tracking
+  const isWin = betType === winner || (winner === 'tie' && betType !== 'tie');
+  updateStats(userId, { wagered: betCents, won: payoutCents, isWin: payoutCents > betCents, gameType: 'baccarat' });
+  const newAchievements = checkAchievements(userId);
+
   return {
     player_hand: playerHand,
     banker_hand: bankerHand,
@@ -130,9 +136,12 @@ export function dealBaccarat(userId: number, betCents: number, betType: Baccarat
     banker_value: bankerValue,
     winner,
     payout_cents: payoutCents,
-    new_balance_cents: newBalance,
+    new_balance_cents: newAchievements.length > 0
+      ? (db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(userId) as { balance_cents: number }).balance_cents
+      : newBalance,
     server_seed_hash: hashSeed(serverSeed),
     client_seed: clientSeed,
     nonce,
+    new_achievements: newAchievements.length > 0 ? newAchievements : undefined,
   };
 }

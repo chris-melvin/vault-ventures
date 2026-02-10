@@ -32,7 +32,7 @@ export default function CardHand({
   const numDealt = dealtCount ?? cards.length;
   const numFlipped = flippedCount ?? numDealt;
   const visibleCards = cards.slice(0, numDealt);
-  const allRevealed = numFlipped >= numDealt && numDealt > 0;
+  const allRevealed = numFlipped >= numDealt && numDealt >= cards.length;
 
   return (
     <div className={`flex flex-col items-center gap-2 ${active ? 'ring-2 ring-casino-gold/60 rounded-xl p-2 -m-2' : ''}`}>
