@@ -14,6 +14,10 @@ import bankRoutes from './routes/bank.js';
 import achievementRoutes from './routes/achievements.js';
 import marketRoutes from './routes/market.js';
 import pinballRoutes from './routes/pinball.js';
+import sicboRoutes from './routes/sicbo.js';
+import rouletteRoutes from './routes/roulette.js';
+import networthRoutes from './routes/networth.js';
+import statsRoutes from './routes/stats.js';
 import { seedAchievements } from './services/achievementService.js';
 import { seedMarketItems } from './services/marketService.js';
 
@@ -40,6 +44,10 @@ app.use('/api/bank', bankRoutes);
 app.use('/api/achievements', achievementRoutes);
 app.use('/api/market', marketRoutes);
 app.use('/api/pinball', pinballRoutes);
+app.use('/api/sicbo', sicboRoutes);
+app.use('/api/roulette', rouletteRoutes);
+app.use('/api/networth', networthRoutes);
+app.use('/api/stats', statsRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

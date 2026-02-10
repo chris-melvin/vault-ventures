@@ -24,6 +24,12 @@ import type {
   PricePoint,
   PinballSpinResult,
   RentCollectionResult,
+  SicBoBetType,
+  SicBoRollResult,
+  RouletteBet,
+  RouletteSpinResult,
+  NetWorthResponse,
+  StatsDeepDiveResponse,
 } from '@shared/types';
 
 // Initialize token from localStorage immediately so it's available before any effects run
@@ -207,6 +213,34 @@ export const pinball = {
       method: 'POST',
       body: JSON.stringify({ amount_cents, bet_level }),
     }),
+};
+
+// Sic Bo
+export const sicbo = {
+  roll: (bets: Partial<Record<SicBoBetType, number>>) =>
+    request<SicBoRollResult>('/sicbo/roll', {
+      method: 'POST',
+      body: JSON.stringify({ bets }),
+    }),
+};
+
+// Roulette
+export const roulette = {
+  spin: (bets: RouletteBet[]) =>
+    request<RouletteSpinResult>('/roulette/spin', {
+      method: 'POST',
+      body: JSON.stringify({ bets }),
+    }),
+};
+
+// Net Worth
+export const networth = {
+  get: () => request<NetWorthResponse>('/networth'),
+};
+
+// Stats
+export const stats = {
+  deepDive: () => request<StatsDeepDiveResponse>('/stats/deep-dive'),
 };
 
 // Market

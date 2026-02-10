@@ -466,6 +466,131 @@ export interface PinballSpinResult extends GameResult {
   bet_level: number;
 }
 
+// ============ Sic Bo ============
+export type SicBoBetType =
+  | 'big' | 'small' | 'odd' | 'even'
+  | 'total_4' | 'total_5' | 'total_6' | 'total_7' | 'total_8' | 'total_9' | 'total_10'
+  | 'total_11' | 'total_12' | 'total_13' | 'total_14' | 'total_15' | 'total_16' | 'total_17'
+  | 'double_1' | 'double_2' | 'double_3' | 'double_4' | 'double_5' | 'double_6'
+  | 'triple_1' | 'triple_2' | 'triple_3' | 'triple_4' | 'triple_5' | 'triple_6'
+  | 'any_triple'
+  | 'single_1' | 'single_2' | 'single_3' | 'single_4' | 'single_5' | 'single_6';
+
+export const SIC_BO_PAYOUTS: Record<SicBoBetType, number> = {
+  big: 1, small: 1, odd: 1, even: 1,
+  total_4: 60, total_5: 30, total_6: 17, total_7: 12, total_8: 8, total_9: 6, total_10: 6,
+  total_11: 6, total_12: 6, total_13: 8, total_14: 12, total_15: 17, total_16: 30, total_17: 60,
+  double_1: 10, double_2: 10, double_3: 10, double_4: 10, double_5: 10, double_6: 10,
+  triple_1: 180, triple_2: 180, triple_3: 180, triple_4: 180, triple_5: 180, triple_6: 180,
+  any_triple: 30,
+  single_1: 1, single_2: 1, single_3: 1, single_4: 1, single_5: 1, single_6: 1,
+};
+
+export const SIC_BO_BET_TYPES: SicBoBetType[] = Object.keys(SIC_BO_PAYOUTS) as SicBoBetType[];
+
+export interface SicBoRollRequest {
+  bets: Partial<Record<SicBoBetType, number>>;
+}
+
+export interface SicBoRollResult extends GameResult {
+  dice: [number, number, number];
+  total: number;
+  bets: Partial<Record<SicBoBetType, number>>;
+  total_bet_cents: number;
+  winning_bets: SicBoBetType[];
+}
+
+// ============ Roulette ============
+export type RouletteBetType =
+  | 'straight' | 'split' | 'street' | 'corner' | 'line'
+  | 'dozen_1' | 'dozen_2' | 'dozen_3'
+  | 'column_1' | 'column_2' | 'column_3'
+  | 'red' | 'black' | 'odd' | 'even' | 'high' | 'low';
+
+export const ROULETTE_PAYOUTS: Record<RouletteBetType, number> = {
+  straight: 35, split: 17, street: 11, corner: 8, line: 5,
+  dozen_1: 2, dozen_2: 2, dozen_3: 2,
+  column_1: 2, column_2: 2, column_3: 2,
+  red: 1, black: 1, odd: 1, even: 1, high: 1, low: 1,
+};
+
+export const ROULETTE_RED_NUMBERS = [1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36];
+export const ROULETTE_BLACK_NUMBERS = [2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 28, 29, 31, 33, 35];
+
+export interface RouletteBet {
+  type: RouletteBetType;
+  numbers: number[];
+  amount_cents: number;
+}
+
+export interface RouletteSpinRequest {
+  bets: RouletteBet[];
+}
+
+export interface RouletteSpinResult extends GameResult {
+  winning_number: number;
+  winning_color: 'red' | 'black' | 'green';
+  bets: RouletteBet[];
+  total_bet_cents: number;
+  winning_bets: number[];
+}
+
+// ============ Net Worth ============
+export interface PortfolioBreakdownItem {
+  item_id: string;
+  name: string;
+  icon: string;
+  category: MarketCategory;
+  quantity: number;
+  current_value_cents: number;
+  cost_basis_cents: number;
+  profit_cents: number;
+}
+
+export interface NetWorthResponse {
+  wallet_cents: number;
+  bank_cents: number;
+  portfolio_value_cents: number;
+  pending_rent_cents: number;
+  pending_interest_cents: number;
+  total_net_worth_cents: number;
+  portfolio_breakdown: PortfolioBreakdownItem[];
+}
+
+// ============ Stats Deep Dive ============
+export interface BalanceHistoryPoint {
+  timestamp: number;
+  balance_cents: number;
+}
+
+export interface GameTypeStats {
+  game_type: string;
+  games_played: number;
+  total_wagered_cents: number;
+  total_won_cents: number;
+  net_profit_cents: number;
+  win_rate: number;
+}
+
+export interface ProfitLossPoint {
+  timestamp: number;
+  cumulative_profit_cents: number;
+}
+
+export interface StatsDeepDiveResponse {
+  balance_history: BalanceHistoryPoint[];
+  game_type_stats: GameTypeStats[];
+  market_roi: {
+    total_invested_cents: number;
+    total_sold_cents: number;
+    current_holdings_value_cents: number;
+    realized_pl_cents: number;
+    unrealized_pl_cents: number;
+    rent_earned_cents: number;
+  };
+  profit_loss_timeline: ProfitLossPoint[];
+}
+
 // ============ Error ============
 export interface ApiError {
   error: string;

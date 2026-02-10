@@ -29,6 +29,22 @@ const FEATURES = [
     gradient: 'from-yellow-900/40 to-orange-900/20',
     icon: '\u{1F3C6}',
   },
+  {
+    id: 'networth',
+    name: 'Net Worth',
+    description: 'Total wealth breakdown across wallet, bank & portfolio',
+    path: '/networth',
+    gradient: 'from-cyan-900/40 to-blue-900/20',
+    icon: '\u{1F4B0}',
+  },
+  {
+    id: 'stats',
+    name: 'Stats Deep Dive',
+    description: 'Balance history, win rates, ROI & profit analytics',
+    path: '/stats',
+    gradient: 'from-purple-900/40 to-violet-900/20',
+    icon: '\u{1F4CA}',
+  },
 ];
 
 const GAMES = [
@@ -86,6 +102,24 @@ const GAMES = [
     icon: '\u{1F3B1}',
     minBet: '$1',
   },
+  {
+    id: 'sicbo',
+    name: 'Sic Bo',
+    description: 'Roll three dice and bet on totals, doubles, and triples',
+    path: '/sicbo',
+    gradient: 'from-orange-900/40 to-red-900/20',
+    icon: '\u{1F3B2}',
+    minBet: '$1',
+  },
+  {
+    id: 'roulette',
+    name: 'Roulette',
+    description: 'European roulette with inside and outside bets',
+    path: '/roulette',
+    gradient: 'from-rose-900/40 to-red-900/20',
+    icon: '\u{1F3A1}',
+    minBet: '$1',
+  },
 ];
 
 export default function LobbyPage() {
@@ -132,7 +166,7 @@ export default function LobbyPage() {
           <p className="text-white/40">Manage your wealth and track progress</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {FEATURES.map((feature) => (
             <button
               key={feature.id}

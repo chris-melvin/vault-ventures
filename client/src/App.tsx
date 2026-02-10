@@ -11,6 +11,10 @@ import BankPage from './pages/BankPage';
 import AchievementsPage from './pages/AchievementsPage';
 import MarketPage from './pages/MarketPage';
 import PinballPage from './pages/PinballPage';
+import SicBoPage from './pages/SicBoPage';
+import RoulettePage from './pages/RoulettePage';
+import NetWorthPage from './pages/NetWorthPage';
+import StatsPage from './pages/StatsPage';
 import AchievementToast from './components/achievements/AchievementToast';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -35,6 +39,10 @@ export default function App() {
         <Route path="/bank" element={<ProtectedRoute><BankPage /></ProtectedRoute>} />
         <Route path="/achievements" element={<ProtectedRoute><AchievementsPage /></ProtectedRoute>} />
         <Route path="/market" element={<ProtectedRoute><MarketPage /></ProtectedRoute>} />
+        <Route path="/sicbo" element={<ProtectedRoute><SicBoPage /></ProtectedRoute>} />
+        <Route path="/roulette" element={<ProtectedRoute><RoulettePage /></ProtectedRoute>} />
+        <Route path="/networth" element={<ProtectedRoute><NetWorthPage /></ProtectedRoute>} />
+        <Route path="/stats" element={<ProtectedRoute><StatsPage /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
