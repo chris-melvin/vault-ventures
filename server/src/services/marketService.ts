@@ -283,6 +283,11 @@ export function buyItem(userId: number, itemId: string, quantity: number = 1): M
   const item = db.prepare('SELECT * FROM market_items WHERE id = ? AND available = 1').get(itemId) as MarketItemRow | undefined;
   if (!item) throw new Error('Item not found or unavailable');
 
+  // Collectibles and vehicles are unique items - only 1 per purchase
+  if ((item.category === 'collectible' || item.category === 'vehicle') && quantity > 1) {
+    quantity = 1;
+  }
+
   const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
   const totalCost = priceCents * quantity;
 

@@ -1,7 +1,7 @@
 import db from '../db/database.js';
 import type { BankAccountState, BankTransaction } from '../../../shared/types.ts';
 
-const INTEREST_RATE_PER_HOUR = 0.005; // 0.5% per hour
+const INTEREST_RATE_PER_12H = 0.001; // 0.1% per 12 hours
 
 interface BankAccountRow {
   id: number;
@@ -24,8 +24,8 @@ function calculatePendingInterest(balance: number, lastInterestAt: number): numb
   const now = Math.floor(Date.now() / 1000);
   const elapsedSeconds = now - lastInterestAt;
   if (elapsedSeconds <= 0 || balance <= 0) return 0;
-  const hoursElapsed = elapsedSeconds / 3600;
-  return Math.floor(balance * INTEREST_RATE_PER_HOUR * hoursElapsed);
+  const periodsElapsed = elapsedSeconds / 43200; // 12-hour periods
+  return Math.floor(balance * INTEREST_RATE_PER_12H * periodsElapsed);
 }
 
 function applyAccruedInterest(userId: number): number {

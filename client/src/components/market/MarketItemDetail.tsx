@@ -36,6 +36,7 @@ export default function MarketItemDetail({ itemId, onClose, onBuy }: Props) {
     );
   }
 
+  const allowMultiple = item.category === 'stock' || item.category === 'property';
   const totalCost = item.current_price_cents * quantity;
 
   return (
@@ -98,56 +99,58 @@ export default function MarketItemDetail({ itemId, onClose, onBuy }: Props) {
           )}
         </div>
 
-        {/* Quantity selector */}
-        <div className="flex items-center gap-3 mb-4">
-          <span className="text-white/50 text-sm">Qty:</span>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setQuantity(Math.max(1, quantity - 1))}
-              className="w-8 h-8 rounded-lg bg-casino-card border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors cursor-pointer flex items-center justify-center font-bold"
-            >
-              -
-            </button>
-            <input
-              type="number"
-              min={1}
-              max={999}
-              value={quantity}
-              onChange={(e) => {
-                const v = parseInt(e.target.value);
-                if (!isNaN(v) && v >= 1 && v <= 999) setQuantity(v);
-              }}
-              className="w-16 h-8 rounded-lg bg-casino-dark border border-white/10 text-white text-center text-sm font-bold focus:outline-none focus:border-casino-gold/40"
-            />
-            <button
-              onClick={() => setQuantity(Math.min(999, quantity + 1))}
-              className="w-8 h-8 rounded-lg bg-casino-card border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors cursor-pointer flex items-center justify-center font-bold"
-            >
-              +
-            </button>
-          </div>
-          <div className="flex gap-1 ml-auto">
-            {[5, 10, 25].map(q => (
+        {/* Quantity selector - only for stocks & property */}
+        {allowMultiple && (
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-white/50 text-sm">Qty:</span>
+            <div className="flex items-center gap-1">
               <button
-                key={q}
-                onClick={() => setQuantity(q)}
-                className={`px-2 py-1 rounded text-xs font-bold cursor-pointer transition-colors ${
-                  quantity === q
-                    ? 'bg-casino-gold/20 text-casino-gold border border-casino-gold/30'
-                    : 'bg-casino-card text-white/40 border border-white/10 hover:text-white/60'
-                }`}
+                onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                className="w-8 h-8 rounded-lg bg-casino-card border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors cursor-pointer flex items-center justify-center font-bold"
               >
-                {q}
+                -
               </button>
-            ))}
+              <input
+                type="number"
+                min={1}
+                max={99999}
+                value={quantity}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value);
+                  if (!isNaN(v) && v >= 1 && v <= 99999) setQuantity(v);
+                }}
+                className="w-20 h-8 rounded-lg bg-casino-dark border border-white/10 text-white text-center text-sm font-bold focus:outline-none focus:border-casino-gold/40"
+              />
+              <button
+                onClick={() => setQuantity(Math.min(99999, quantity + 1))}
+                className="w-8 h-8 rounded-lg bg-casino-card border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors cursor-pointer flex items-center justify-center font-bold"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex gap-1 ml-auto">
+              {[10, 100, 1000].map(q => (
+                <button
+                  key={q}
+                  onClick={() => setQuantity(q)}
+                  className={`px-2 py-1 rounded text-xs font-bold cursor-pointer transition-colors ${
+                    quantity === q
+                      ? 'bg-casino-gold/20 text-casino-gold border border-casino-gold/30'
+                      : 'bg-casino-card text-white/40 border border-white/10 hover:text-white/60'
+                  }`}
+                >
+                  {q}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <button
-          onClick={() => onBuy(item.id, quantity)}
+          onClick={() => onBuy(item.id, allowMultiple ? quantity : 1)}
           className="btn-primary w-full"
         >
-          Buy {quantity}x for {formatCents(totalCost)}
+          {allowMultiple ? `Buy ${quantity}x for ${formatCents(totalCost)}` : `Buy for ${formatCents(item.current_price_cents)}`}
         </button>
       </motion.div>
     </div>
