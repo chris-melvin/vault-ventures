@@ -5,7 +5,8 @@ import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const db = new Database(join(__dirname, '..', '..', '..', 'casino.db'));
+const dbPath = process.env.DATABASE_PATH || join(__dirname, '..', '..', '..', 'casino.db');
+const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL');

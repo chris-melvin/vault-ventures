@@ -9,7 +9,8 @@
     "dev:server": "cd server && pnpm tsx --watch src/index.ts",
     "build": "pnpm run build:client",
     "build:client": "cd client && pnpm run build",
-    "build:server": "cd server && pnpm tsc --noEmit"
+    "build:server": "cd server && pnpm tsc --noEmit",
+    "start": "cd server && pnpm tsx src/index.ts"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

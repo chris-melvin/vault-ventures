@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import walletRoutes from './routes/wallet.js';
 import wheelRoutes from './routes/wheel.js';
@@ -16,7 +18,7 @@ import { seedAchievements } from './services/achievementService.js';
 import { seedMarketItems } from './services/marketService.js';
 
 const app = express();
-const PORT = 3001;
+const PORT = Number(process.env.PORT) || 3001;
 
 app.use(cors());
 app.use(express.json());
@@ -41,6 +43,14 @@ app.use('/api/pinball', pinballRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Serve client static files in production
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+app.use(express.static(clientDist));
+app.get('*', (_req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
 app.listen(PORT, () => {
