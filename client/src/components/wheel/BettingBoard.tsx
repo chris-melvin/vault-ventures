@@ -1,5 +1,5 @@
 import { WHEEL_SYMBOL_CONFIGS, type WheelSymbol, type WheelSymbolConfig } from '@shared/types';
-import { CHIP_VALUES, CHIP_COLORS, formatCents, formatChipLabel } from '../../lib/constants';
+import { CHIP_COLORS, formatCents, formatChipLabel, getVisibleChips } from '../../lib/constants';
 import { useGameStore } from '../../stores/useGameStore';
 import { playChipPlace } from '../../lib/sounds';
 
@@ -90,8 +90,8 @@ export default function BettingBoard({
       </div>
 
       {/* Chip selector */}
-      <div className="flex items-center justify-center gap-2">
-        {CHIP_VALUES.map((value) => {
+      <div className="flex items-center justify-center gap-2 flex-wrap">
+        {getVisibleChips(balance_cents).map((value) => {
           const colors = CHIP_COLORS[value];
           const isSelected = selectedChip === value;
           const isDisabled = value > balance_cents;
@@ -105,7 +105,7 @@ export default function BettingBoard({
               style={{
                 width: '2.75rem',
                 height: '2.75rem',
-                fontSize: '0.75rem',
+                fontSize: value >= 50000 ? '0.55rem' : '0.75rem',
                 backgroundColor: colors.bg,
                 borderColor: isSelected ? '#d4af37' : colors.border,
                 color: colors.text,
