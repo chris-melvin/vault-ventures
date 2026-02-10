@@ -126,7 +126,7 @@ export interface CardData {
   faceUp: boolean;
 }
 
-export type BlackjackAction = 'hit' | 'stand' | 'double';
+export type BlackjackAction = 'hit' | 'stand' | 'double' | 'split' | 'surrender' | 'insurance_yes' | 'insurance_no';
 
 export interface BlackjackDealRequest extends BetRequest {}
 
@@ -135,16 +135,33 @@ export interface BlackjackActionRequest {
   action: BlackjackAction;
 }
 
+export interface BlackjackHandState {
+  cards: CardData[];
+  value: number;
+  status: 'playing' | 'standing' | 'busted' | 'blackjack' | 'surrendered';
+  bet_cents: number;
+  is_from_split: boolean;
+}
+
 export interface BlackjackState {
   session_id: string;
-  player_hand: CardData[];
+  hands: BlackjackHandState[];
+  active_hand_index: number;
   dealer_hand: CardData[];
-  player_value: number;
   dealer_value: number | null;
+  game_status: 'insurance_prompt' | 'playing' | 'resolved';
+  hand_outcomes: (string | null)[];
+  available_actions: BlackjackAction[];
+  insurance_bet_cents: number;
+  insurance_payout_cents: number;
+  total_payout_cents: number;
+  new_balance_cents: number;
+  // Backward-compat fields (mirror hands[0])
+  player_hand: CardData[];
+  player_value: number;
   status: 'playing' | 'dealer_turn' | 'player_bust' | 'dealer_bust' | 'player_win' | 'dealer_win' | 'push' | 'blackjack';
   can_double: boolean;
   payout_cents: number;
-  new_balance_cents: number;
 }
 
 // ============ Baccarat ============

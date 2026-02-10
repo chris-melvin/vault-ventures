@@ -1,54 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import CardHand from '../cards/CardHand';
 import ChipSelector from '../shared/ChipSelector';
 import TableResult from '../shared/TableResult';
-import GameHistory from '../shared/GameHistory';
+import BaccaratRoads from './BaccaratRoads';
 import BaccaratBettingTable from './BaccaratBettingTable';
 import { useGameStore } from '../../stores/useGameStore';
+import { useCardReveal, type RevealStep } from '../../hooks/useCardReveal';
+import { BACCARAT_TIMINGS } from '../../lib/dealingTimings';
 import { baccarat as bacApi } from '../../lib/api';
 import { formatCents } from '../../lib/constants';
-import type { BaccaratResult, BaccaratBetType, GameHistoryEntry } from '@shared/types';
-
-const WINNER_COLORS: Record<string, string> = {
-  player: 'bg-blue-500',
-  banker: 'bg-red-500',
-  tie: 'bg-green-500',
-};
-
-const WINNER_LABELS: Record<string, string> = {
-  player: 'P',
-  banker: 'B',
-  tie: 'T',
-};
-
-function timeAgo(unixSeconds: number): string {
-  const diff = Math.floor(Date.now() / 1000) - unixSeconds;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
-}
-
-function renderBaccaratEntry(entry: GameHistoryEntry) {
-  const d = entry.result_data;
-  const winner = d.winner as string;
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <div className="flex items-center gap-2.5">
-        <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white ${WINNER_COLORS[winner] ?? 'bg-gray-500'}`}>
-          {WINNER_LABELS[winner] ?? '?'}
-        </span>
-        <span className="text-white/80">
-          {d.playerValue} vs {d.bankerValue}
-        </span>
-        <span className="text-white/40 text-xs capitalize">{d.betType} bet</span>
-      </div>
-      <div className="flex items-center gap-3">
-        <span className="text-white/25 text-xs">{timeAgo(entry.timestamp)}</span>
-      </div>
-    </div>
-  );
-}
+import type { BaccaratResult, BaccaratBetType } from '@shared/types';
 
 export default function BaccaratGame() {
   const [betType, setBetType] = useState<BaccaratBetType>('player');
@@ -57,6 +18,38 @@ export default function BaccaratGame() {
   const [showResult, setShowResult] = useState(false);
   const [historyKey, setHistoryKey] = useState(0);
   const { currentBet, chipStack, addChip, removeLastChip, clearBet, setBalance } = useGameStore();
+  const { positions, isAnimating, startReveal, skipToEnd, reset } = useCardReveal();
+
+  const buildDealSteps = useCallback((res: BaccaratResult): RevealStep[] => {
+    const t = BACCARAT_TIMINGS;
+    const steps: RevealStep[] = [];
+
+    // Deal 4 cards face-down alternating: player, banker, player, banker
+    steps.push({ position: 'player', delay: 0, action: 'deal' });
+    steps.push({ position: 'banker', delay: t.dealInterval, action: 'deal' });
+    steps.push({ position: 'player', delay: t.dealInterval, action: 'deal' });
+    steps.push({ position: 'banker', delay: t.dealInterval, action: 'deal' });
+
+    // Dramatic pause, then flip player cards
+    steps.push({ position: 'player', delay: t.preFlipPause, action: 'flip' });
+    steps.push({ position: 'player', delay: t.flipInterval, action: 'flip' });
+
+    // Dramatic pause, then flip banker cards
+    steps.push({ position: 'banker', delay: t.betweenHandsPause, action: 'flip' });
+    steps.push({ position: 'banker', delay: t.flipInterval, action: 'flip' });
+
+    // 3rd cards if they exist
+    if (res.player_hand.length > 2) {
+      steps.push({ position: 'player', delay: t.thirdCardDealDelay, action: 'deal' });
+      steps.push({ position: 'player', delay: t.thirdCardFlipDelay, action: 'flip' });
+    }
+    if (res.banker_hand.length > 2) {
+      steps.push({ position: 'banker', delay: t.thirdCardDealDelay, action: 'deal' });
+      steps.push({ position: 'banker', delay: t.thirdCardFlipDelay, action: 'flip' });
+    }
+
+    return steps;
+  }, []);
 
   const handleDeal = async () => {
     setLoading(true);
@@ -66,12 +59,30 @@ export default function BaccaratGame() {
       const res = await bacApi.deal(currentBet, betType);
       setResult(res);
       setBalance(res.new_balance_cents);
-      setTimeout(() => setShowResult(true), 1200);
+
+      const steps = buildDealSteps(res);
+      startReveal(steps, {
+        initialCounts: {
+          player: { dealt: 0, flipped: 0 },
+          banker: { dealt: 0, flipped: 0 },
+        },
+        onComplete: () => {
+          setTimeout(() => setShowResult(true), 400);
+        },
+      });
     } catch (err: any) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkip = () => {
+    if (!result) return;
+    skipToEnd({
+      player: result.player_hand.length,
+      banker: result.banker_hand.length,
+    });
   };
 
   const isWin = result ? result.payout_cents > 0 : false;
@@ -80,6 +91,12 @@ export default function BaccaratGame() {
     : '';
 
   const hasResult = result !== null;
+
+  // Derive reveal counts from hook
+  const playerDealt = positions['player']?.dealt;
+  const playerFlipped = positions['player']?.flipped;
+  const bankerDealt = positions['banker']?.dealt;
+  const bankerFlipped = positions['banker']?.flipped;
 
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-2xl flex-1 min-h-0 overflow-hidden">
@@ -91,6 +108,7 @@ export default function BaccaratGame() {
           border: '3px solid #8B6914',
           boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.5)',
         }}
+        onClick={isAnimating ? handleSkip : undefined}
       >
         {/* Felt texture overlay */}
         <div
@@ -103,20 +121,21 @@ export default function BaccaratGame() {
 
         <div className="relative z-10 flex flex-col items-center gap-6 flex-1 justify-between py-2">
           {/* Card display area */}
-          {hasResult ? (
+          {hasResult || isAnimating ? (
             <div className="flex justify-center gap-12 w-full">
               <CardHand
-                cards={result.banker_hand}
+                cards={result?.banker_hand || []}
                 label="Banker"
-                value={result.banker_value}
-                flipAnimation
+                value={result?.banker_value}
+                dealtCount={bankerDealt}
+                flippedCount={bankerFlipped}
               />
               <CardHand
-                cards={result.player_hand}
+                cards={result?.player_hand || []}
                 label="Player"
-                value={result.player_value}
-                delay={0.3}
-                flipAnimation
+                value={result?.player_value}
+                dealtCount={playerDealt}
+                flippedCount={playerFlipped}
               />
             </div>
           ) : (
@@ -134,6 +153,7 @@ export default function BaccaratGame() {
             onComplete={() => {
               setShowResult(false);
               setResult(null);
+              reset();
               clearBet();
               setHistoryKey(k => k + 1);
             }}
@@ -145,14 +165,14 @@ export default function BaccaratGame() {
             chips={chipStack}
             onSelectBet={setBetType}
             onPlaceChip={addChip}
-            winner={hasResult ? result.winner : null}
-            disabled={loading || hasResult}
+            winner={hasResult && !isAnimating ? result.winner : null}
+            disabled={loading || hasResult || isAnimating}
           />
         </div>
       </div>
 
       {/* Bet controls below table */}
-      {!hasResult && (
+      {!hasResult && !isAnimating && (
         <div className="flex flex-col items-center gap-3 w-full max-w-lg">
           <ChipSelector />
 
@@ -183,11 +203,7 @@ export default function BaccaratGame() {
       )}
 
       <div className="w-full flex-1 min-h-0 flex flex-col">
-        <GameHistory
-          gameType="baccarat"
-          refreshKey={historyKey}
-          renderEntry={renderBaccaratEntry}
-        />
+        <BaccaratRoads refreshKey={historyKey} />
       </div>
     </div>
   );

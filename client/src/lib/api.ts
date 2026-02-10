@@ -118,6 +118,21 @@ export const blackjack = {
       method: 'POST',
       body: JSON.stringify({ session_id }),
     }),
+  split: (session_id: string) =>
+    request<BlackjackState>('/blackjack/split', {
+      method: 'POST',
+      body: JSON.stringify({ session_id }),
+    }),
+  insurance: (session_id: string, accept: boolean) =>
+    request<BlackjackState>('/blackjack/insurance', {
+      method: 'POST',
+      body: JSON.stringify({ session_id, accept }),
+    }),
+  surrender: (session_id: string) =>
+    request<BlackjackState>('/blackjack/surrender', {
+      method: 'POST',
+      body: JSON.stringify({ session_id }),
+    }),
 };
 
 // Baccarat

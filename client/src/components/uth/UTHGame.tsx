@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import UTHTable from './UTHTable';
 import TableResult from '../shared/TableResult';
 import ChipSelector from '../shared/ChipSelector';
 import BettingCircle from '../shared/BettingCircle';
 import { useGameStore } from '../../stores/useGameStore';
+import { useCardReveal, type RevealStep } from '../../hooks/useCardReveal';
+import { UTH_TIMINGS } from '../../lib/dealingTimings';
 import { uth as uthApi } from '../../lib/api';
 import { formatCents } from '../../lib/constants';
 import { actionLabel, phaseLabel } from './uthLogic';
@@ -16,18 +18,80 @@ export default function UTHGame() {
   const [showResult, setShowResult] = useState(false);
   const [tripsBet, setTripsBet] = useState(0);
   const { currentBet, chipStack, addChip, removeLastChip, clearBet, setBalance, balance_cents } = useGameStore();
+  const { positions, isAnimating, startReveal, skipToEnd, reset } = useCardReveal();
+  const prevPhaseRef = useRef<string | null>(null);
 
   const isPlaying = game && game.phase !== 'showdown';
   const isShowdown = game?.phase === 'showdown';
+
+  const buildDealSteps = useCallback((): RevealStep[] => {
+    const t = UTH_TIMINGS;
+    const steps: RevealStep[] = [];
+
+    // Deal player cards face-down, then flip
+    steps.push({ position: 'player', delay: 0, action: 'deal' });
+    steps.push({ position: 'player', delay: t.dealInterval, action: 'deal' });
+    steps.push({ position: 'player', delay: t.flipDelay, action: 'flip' });
+    steps.push({ position: 'player', delay: t.flipDelay, action: 'flip' });
+
+    // Dealer cards face-down (stay hidden in preflop)
+    steps.push({ position: 'dealer', delay: t.dealInterval, action: 'deal' });
+    steps.push({ position: 'dealer', delay: t.dealInterval, action: 'deal' });
+
+    return steps;
+  }, []);
+
+  const buildPhaseTransitionSteps = useCallback((result: UTHState, prevPhase: string | null): RevealStep[] => {
+    const t = UTH_TIMINGS;
+    const steps: RevealStep[] = [];
+
+    if (result.phase === 'flop' && prevPhase === 'preflop') {
+      // Deal 3 community cards
+      for (let i = 0; i < 3; i++) {
+        steps.push({ position: 'community', delay: t.flopInterval, action: 'deal' });
+        steps.push({ position: 'community', delay: t.flipDelay, action: 'flip' });
+      }
+    } else if (result.phase === 'river' && prevPhase === 'flop') {
+      // Deal 2 more community cards (turn + river)
+      for (let i = 0; i < 2; i++) {
+        steps.push({ position: 'community', delay: t.flopInterval, action: 'deal' });
+        steps.push({ position: 'community', delay: t.riverFlipDelay, action: 'flip' });
+      }
+    } else if (result.phase === 'showdown') {
+      // Deal remaining community cards if needed
+      const existingCommunity = positions['community']?.dealt ?? 0;
+      const remaining = result.community_cards.length - existingCommunity;
+      for (let i = 0; i < remaining; i++) {
+        steps.push({ position: 'community', delay: t.flopInterval, action: 'deal' });
+        steps.push({ position: 'community', delay: t.flipDelay, action: 'flip' });
+      }
+      // Reveal dealer cards
+      steps.push({ position: 'dealer', delay: t.showdownInterval, action: 'flip' });
+      steps.push({ position: 'dealer', delay: t.showdownInterval, action: 'flip' });
+    }
+
+    return steps;
+  }, [positions]);
 
   const handleDeal = async () => {
     if (currentBet === 0) return;
     setLoading(true);
     setShowResult(false);
+    prevPhaseRef.current = null;
     try {
       const result = await uthApi.deal(currentBet, tripsBet > 0 ? tripsBet : undefined);
       setGame(result);
       setBalance(result.new_balance_cents);
+      prevPhaseRef.current = result.phase;
+
+      const steps = buildDealSteps();
+      startReveal(steps, {
+        initialCounts: {
+          player: { dealt: 0, flipped: 0 },
+          dealer: { dealt: 0, flipped: 0 },
+          community: { dealt: 0, flipped: 0 },
+        },
+      });
     } catch (err: any) {
       console.error(err);
     } finally {
@@ -38,18 +102,54 @@ export default function UTHGame() {
   const handleAction = async (action: UTHAction) => {
     if (!game || loading) return;
     setLoading(true);
+    const prevPhase = prevPhaseRef.current || game.phase;
     try {
       const result = await uthApi.action(game.session_id, action);
       setGame(result);
       setBalance(result.new_balance_cents);
-      if (result.phase === 'showdown') {
+
+      if (result.phase !== prevPhase) {
+        // Phase changed - animate new cards
+        const steps = buildPhaseTransitionSteps(result, prevPhase);
+        if (steps.length > 0) {
+          // Build initial counts from current positions
+          const initialCounts: Record<string, { dealt: number; flipped: number }> = {
+            player: positions['player'] ?? { dealt: 2, flipped: 2 },
+            dealer: positions['dealer'] ?? { dealt: 2, flipped: 0 },
+            community: positions['community'] ?? { dealt: 0, flipped: 0 },
+          };
+
+          startReveal(steps, {
+            initialCounts,
+            onComplete: () => {
+              if (result.phase === 'showdown') {
+                setTimeout(() => setShowResult(true), 400);
+              }
+            },
+          });
+        } else if (result.phase === 'showdown') {
+          setTimeout(() => setShowResult(true), 800);
+        }
+      } else if (result.phase === 'showdown') {
         setTimeout(() => setShowResult(true), 800);
       }
+
+      prevPhaseRef.current = result.phase;
     } catch (err: any) {
       console.error(err);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSkip = () => {
+    if (!game) return;
+    const dealerFlipped = game.phase === 'showdown' ? game.dealer_hand.length : 0;
+    skipToEnd({
+      player: game.player_hand.length,
+      dealer: game.dealer_hand.length,
+      community: game.community_cards.length,
+    });
   };
 
   const getResultInfo = () => {
@@ -92,6 +192,7 @@ export default function UTHGame() {
           border: '3px solid #8B6914',
           boxShadow: 'inset 0 0 60px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.5)',
         }}
+        onClick={isAnimating ? handleSkip : undefined}
       >
         {/* Felt texture */}
         <div
@@ -114,7 +215,15 @@ export default function UTHGame() {
 
           {/* Table content */}
           {game ? (
-            <UTHTable game={game} />
+            <UTHTable
+              game={game}
+              playerDealt={positions['player']?.dealt}
+              playerFlipped={positions['player']?.flipped}
+              dealerDealt={positions['dealer']?.dealt}
+              dealerFlipped={positions['dealer']?.flipped}
+              communityDealt={positions['community']?.dealt}
+              communityFlipped={positions['community']?.flipped}
+            />
           ) : (
             <div className="flex-1 flex items-center">
               <span className="text-white/15 text-lg">Set your ante and deal</span>
@@ -131,13 +240,14 @@ export default function UTHGame() {
               setShowResult(false);
               setGame(null);
               setTripsBet(0);
+              reset();
               clearBet();
             }}
           />
 
           {/* Action buttons on felt */}
           <AnimatePresence>
-            {isPlaying && game && (
+            {isPlaying && !isAnimating && game && (
               <motion.div
                 className="flex gap-2 flex-wrap justify-center"
                 initial={{ opacity: 0, y: 20 }}

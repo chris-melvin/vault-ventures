@@ -9,7 +9,13 @@ interface CardProps {
   index: number;
   delay?: number;
   size?: 'sm' | 'md' | 'lg';
-  flipAnimation?: boolean;
+  /**
+   * Controls whether the card face or back is displayed.
+   * When false, the card back is shown. When it transitions to true,
+   * a smooth 3D flip animation reveals the face.
+   * Defaults to true.
+   */
+  showFace?: boolean;
 }
 
 const CARD_SIZES = {
@@ -76,21 +82,23 @@ function CardBack({ size = 'md' }: { size: 'sm' | 'md' | 'lg' }) {
   );
 }
 
-export default function Card({ card, index, delay = 0, size = 'md', flipAnimation = false }: CardProps) {
+export default function Card({ card, index, delay = 0, size = 'md', showFace = true }: CardProps) {
   const isHidden = card.rank === '?';
+  const faceVisible = showFace && !isHidden;
 
-  if (flipAnimation) {
-    return (
+  return (
+    <motion.div
+      initial={{ x: 200, y: -100, opacity: 0 }}
+      animate={{ x: 0, y: 0, opacity: 1 }}
+      transition={{ type: 'spring', damping: 20, stiffness: 200, delay }}
+      className="relative"
+      style={{ zIndex: index, perspective: 800 }}
+    >
       <motion.div
-        initial={{ rotateY: 180 }}
-        animate={{ rotateY: isHidden ? 180 : 0 }}
-        transition={{
-          duration: 0.6,
-          delay: index * 0.15 + delay,
-          ease: [0.4, 0, 0.2, 1],
-        }}
-        className="relative"
-        style={{ zIndex: index, perspective: 800, transformStyle: 'preserve-3d' }}
+        initial={false}
+        animate={{ rotateY: faceVisible ? 0 : 180 }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        style={{ transformStyle: 'preserve-3d' }}
       >
         {/* Front face */}
         <div style={{ backfaceVisibility: 'hidden' }}>
@@ -104,23 +112,6 @@ export default function Card({ card, index, delay = 0, size = 'md', flipAnimatio
           <CardBack size={size} />
         </div>
       </motion.div>
-    );
-  }
-
-  return (
-    <motion.div
-      initial={{ x: 200, y: -100, opacity: 0, rotateY: 180 }}
-      animate={{ x: 0, y: 0, opacity: 1, rotateY: 0 }}
-      transition={{
-        type: 'spring',
-        damping: 20,
-        stiffness: 200,
-        delay: index * 0.15 + delay,
-      }}
-      className="relative"
-      style={{ zIndex: index, perspective: 800 }}
-    >
-      {isHidden ? <CardBack size={size} /> : <CardFace card={card} size={size} />}
     </motion.div>
   );
 }

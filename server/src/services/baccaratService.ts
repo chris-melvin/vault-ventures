@@ -94,6 +94,9 @@ export function dealBaccarat(userId: number, betCents: number, betType: Baccarat
     if (winner === 'player') payoutCents = betCents * 2;
     else if (winner === 'banker') payoutCents = Math.floor(betCents * 1.95); // 5% commission
     else payoutCents = betCents * 9; // Tie pays 8:1
+  } else if (winner === 'tie') {
+    // Tie pushes player/banker bets — return the bet
+    payoutCents = betCents;
   }
 
   const run = db.transaction(() => {
