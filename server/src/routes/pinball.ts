@@ -22,11 +22,6 @@ router.post('/spin', authMiddleware, (req: AuthRequest, res: Response): void => 
     const level = Math.max(1, Math.min(3, Math.floor(bet_level)));
     const totalCost = amount_cents * level;
 
-    if (totalCost > 10000000) {
-      res.status(400).json({ error: 'Maximum bet is $100,000' });
-      return;
-    }
-
     const user = db.prepare('SELECT balance_cents FROM users WHERE id = ?').get(req.userId!) as { balance_cents: number } | undefined;
     if (!user || user.balance_cents < totalCost) {
       res.status(400).json({ error: 'Insufficient balance' });
