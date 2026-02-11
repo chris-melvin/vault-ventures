@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import db from '../db/database.js';
+import { getMultiplier } from './prestigeService.js';
 import type {
   MarketItemWithPrice, MarketItemDetail, PricePoint,
   MarketBuyResult, MarketSellResult, InventoryItem, MarketTransaction, RentCollectionResult,
@@ -7,6 +8,7 @@ import type {
 
 // ============ Deterministic Pricing ============
 const PRICE_PERIOD_SECONDS = 1800; // 30 minutes
+const CRYPTO_PRICE_PERIOD_SECONDS = 300; // 5 minutes
 
 function hashPrice(seed: number, timeBucket: number): number {
   const hash = createHash('sha256').update(`${seed}:${timeBucket}`).digest('hex');
@@ -14,19 +16,25 @@ function hashPrice(seed: number, timeBucket: number): number {
   return value / 0xffffffff;
 }
 
-function getCurrentPrice(basePriceCents: number, volatility: number, seed: number, timestamp?: number): number {
+function getCurrentPrice(basePriceCents: number, volatility: number, seed: number, timestamp?: number, period?: number): number {
+  const p = period ?? PRICE_PERIOD_SECONDS;
   const now = timestamp ?? Math.floor(Date.now() / 1000);
-  const timeBucket = Math.floor(now / PRICE_PERIOD_SECONDS);
+  const timeBucket = Math.floor(now / p);
   const hashVal = hashPrice(seed, timeBucket);
   const wave = (hashVal * 2) - 1;
   const price = Math.floor(basePriceCents * (1 + wave * volatility));
   return Math.max(Math.floor(basePriceCents * 0.1), price);
 }
 
-function getPreviousPrice(basePriceCents: number, volatility: number, seed: number): number {
+function getPreviousPrice(basePriceCents: number, volatility: number, seed: number, period?: number): number {
+  const p = period ?? PRICE_PERIOD_SECONDS;
   const now = Math.floor(Date.now() / 1000);
-  const prevTimestamp = now - PRICE_PERIOD_SECONDS;
-  return getCurrentPrice(basePriceCents, volatility, seed, prevTimestamp);
+  const prevTimestamp = now - p;
+  return getCurrentPrice(basePriceCents, volatility, seed, prevTimestamp, p);
+}
+
+function getPeriodForCategory(category: string): number {
+  return category === 'crypto' ? CRYPTO_PRICE_PERIOD_SECONDS : PRICE_PERIOD_SECONDS;
 }
 
 // ============ Seed Market Items ============
@@ -123,48 +131,21 @@ const MARKET_ITEM_SEEDS = [
   { id: 'yacht', name: 'Luxury Yacht', description: '60ft luxury motor yacht', icon: '🛥️', category: 'vehicle', base_price_cents: 75000000, volatility: 0.15, rarity: 'legendary', seed: 4004, rent_rate: 0 },
   { id: 'trike', name: 'Custom Tricycle', description: 'Souped-up Filipino tricycle', icon: '🛺', category: 'vehicle', base_price_cents: 100000, volatility: 0.25, rarity: 'common', seed: 4005, rent_rate: 0 },
   { id: 'helicopter', name: 'Robinson R44', description: 'Personal helicopter for island hopping', icon: '🚁', category: 'vehicle', base_price_cents: 40000000, volatility: 0.18, rarity: 'legendary', seed: 4006, rent_rate: 0 },
+
+  // ========== CRYPTO ==========
+  { id: 'lucky7coin', name: 'Lucky7Coin', description: 'Community-driven lucky number token', icon: '🎰', category: 'crypto', base_price_cents: 500, volatility: 0.95, rarity: 'common', seed: 5001, rent_rate: 0 },
+  { id: 'jackpot_token', name: 'JackpotToken', description: 'Deflationary token with burn mechanics', icon: '💎', category: 'crypto', base_price_cents: 2000, volatility: 0.90, rarity: 'uncommon', seed: 5002, rent_rate: 0 },
+  { id: 'whalecoin', name: 'WhaleCoin', description: 'Blue-chip casino governance token', icon: '🐋', category: 'crypto', base_price_cents: 10000, volatility: 0.85, rarity: 'rare', seed: 5003, rent_rate: 0 },
+  { id: 'degendao', name: 'DegenDAO', description: 'Decentralized degen community fund', icon: '🦧', category: 'crypto', base_price_cents: 100, volatility: 0.98, rarity: 'common', seed: 5004, rent_rate: 0 },
+  { id: 'diamondhands', name: 'DiamondHands', description: 'HODL-incentivized staking token', icon: '💠', category: 'crypto', base_price_cents: 5000, volatility: 0.88, rarity: 'uncommon', seed: 5005, rent_rate: 0 },
+  { id: 'moonshot', name: 'MoonShot', description: 'Meme coin with volatile price action', icon: '🚀', category: 'crypto', base_price_cents: 300, volatility: 0.95, rarity: 'common', seed: 5006, rent_rate: 0 },
+  { id: 'rugpull', name: 'RugPull', description: 'Suspiciously promising DeFi protocol', icon: '🧶', category: 'crypto', base_price_cents: 50, volatility: 0.99, rarity: 'common', seed: 5007, rent_rate: 0 },
+  { id: 'casinonft', name: 'CasinoNFT', description: 'Fractional casino ownership NFT', icon: '🎭', category: 'crypto', base_price_cents: 1500, volatility: 0.92, rarity: 'uncommon', seed: 5008, rent_rate: 0 },
 ];
 
-function runMigrations(): void {
-  // Add rent_rate column to market_items if not exists
-  try {
-    db.prepare("SELECT rent_rate FROM market_items LIMIT 1").get();
-  } catch {
-    db.exec("ALTER TABLE market_items ADD COLUMN rent_rate REAL NOT NULL DEFAULT 0");
-  }
-  // Add last_rent_at column to user_inventory if not exists
-  try {
-    db.prepare("SELECT last_rent_at FROM user_inventory LIMIT 1").get();
-  } catch {
-    const nowEpoch = Math.floor(Date.now() / 1000);
-    db.exec(`ALTER TABLE user_inventory ADD COLUMN last_rent_at INTEGER NOT NULL DEFAULT ${nowEpoch}`);
-  }
-  // Migrate meta_transactions to include 'RENT' in CHECK constraint
-  // SQLite can't ALTER CHECK constraints, so recreate the table if needed
-  try {
-    db.exec("INSERT INTO meta_transactions (user_id, amount_cents, type, description) VALUES (0, 0, 'RENT', '__migration_test__')");
-    db.exec("DELETE FROM meta_transactions WHERE user_id = 0 AND description = '__migration_test__'");
-  } catch {
-    // CHECK constraint rejects 'RENT' - need to recreate table
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS meta_transactions_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        amount_cents INTEGER NOT NULL,
-        type TEXT NOT NULL CHECK(type IN ('BANK_DEPOSIT','BANK_WITHDRAW','BANK_INTEREST','MARKET_BUY','MARKET_SELL','ACHIEVEMENT_REWARD','RENT')),
-        description TEXT,
-        timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      );
-      INSERT INTO meta_transactions_new SELECT * FROM meta_transactions;
-      DROP TABLE meta_transactions;
-      ALTER TABLE meta_transactions_new RENAME TO meta_transactions;
-    `);
-  }
-}
+// Migrations are now handled centrally in database.ts
 
 export function seedMarketItems(): void {
-  runMigrations();
 
   const insert = db.prepare(
     'INSERT OR IGNORE INTO market_items (id, name, description, icon, category, base_price_cents, volatility, rarity, seed, rent_rate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
@@ -201,17 +182,22 @@ interface MarketItemRow {
 }
 
 export function getMarketItems(category?: string): MarketItemWithPrice[] {
-  const query = category
-    ? 'SELECT * FROM market_items WHERE available = 1 AND category = ?'
-    : 'SELECT * FROM market_items WHERE available = 1';
+  let query: string;
+  if (category) {
+    query = 'SELECT * FROM market_items WHERE available = 1 AND category = ?';
+  } else {
+    // Default "All" excludes crypto
+    query = "SELECT * FROM market_items WHERE available = 1 AND category != 'crypto'";
+  }
   const items = (category
     ? db.prepare(query).all(category)
     : db.prepare(query).all()
   ) as MarketItemRow[];
 
   return items.map(item => {
-    const current = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
-    const previous = getPreviousPrice(item.base_price_cents, item.volatility, item.seed);
+    const period = getPeriodForCategory(item.category);
+    const current = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, undefined, period);
+    const previous = getPreviousPrice(item.base_price_cents, item.volatility, item.seed, period);
     const trend = previous > 0 ? ((current - previous) / previous) * 100 : 0;
 
     return {
@@ -235,8 +221,9 @@ export function getMarketItemDetail(itemId: string, periods: number = 24): Marke
   const item = db.prepare('SELECT * FROM market_items WHERE id = ?').get(itemId) as MarketItemRow | undefined;
   if (!item) throw new Error('Item not found');
 
-  const current = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
-  const previous = getPreviousPrice(item.base_price_cents, item.volatility, item.seed);
+  const period = getPeriodForCategory(item.category);
+  const current = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, undefined, period);
+  const previous = getPreviousPrice(item.base_price_cents, item.volatility, item.seed, period);
   const trend = previous > 0 ? ((current - previous) / previous) * 100 : 0;
 
   const priceHistory = getPriceHistory(item, periods);
@@ -260,11 +247,12 @@ export function getMarketItemDetail(itemId: string, periods: number = 24): Marke
 
 function getPriceHistory(item: MarketItemRow, periods: number): PricePoint[] {
   const now = Math.floor(Date.now() / 1000);
+  const period = getPeriodForCategory(item.category);
   const points: PricePoint[] = [];
 
   for (let i = periods - 1; i >= 0; i--) {
-    const ts = now - (i * PRICE_PERIOD_SECONDS);
-    const price = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, ts);
+    const ts = now - (i * period);
+    const price = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, ts, period);
     points.push({ timestamp: ts, price_cents: price });
   }
 
@@ -288,7 +276,8 @@ export function buyItem(userId: number, itemId: string, quantity: number = 1): M
     quantity = 1;
   }
 
-  const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
+  const period = getPeriodForCategory(item.category);
+  const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, undefined, period);
   const totalCost = priceCents * quantity;
 
   const run = db.transaction(() => {
@@ -329,7 +318,8 @@ export function sellItem(userId: number, inventoryId: number): MarketSellResult 
     if (!inv) throw new Error('Inventory item not found');
 
     const item = db.prepare('SELECT * FROM market_items WHERE id = ?').get(inv.item_id) as MarketItemRow;
-    const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
+    const period = getPeriodForCategory(item.category);
+    const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, undefined, period);
     const totalRevenue = priceCents * inv.quantity;
     const profit = totalRevenue - (inv.purchased_price_cents * inv.quantity);
 
@@ -424,6 +414,7 @@ export function collectRent(userId: number): RentCollectionResult {
 
     let totalRent = 0;
     let propertiesCollected = 0;
+    const prestigeMultiplier = getMultiplier(userId);
 
     for (const row of rows) {
       const lastRentAt = row.last_rent_at || now;
@@ -431,8 +422,10 @@ export function collectRent(userId: number): RentCollectionResult {
       if (hoursElapsed <= 0) continue;
 
       const currentPrice = getCurrentPrice(row.base_price_cents, row.volatility, row.seed);
-      const rent = Math.floor(currentPrice * row.quantity * row.rent_rate * hoursElapsed);
+      let rent = Math.floor(currentPrice * row.quantity * row.rent_rate * hoursElapsed);
       if (rent <= 0) continue;
+      // Apply prestige multiplier to rent
+      if (prestigeMultiplier > 1.0) rent = Math.floor(rent * prestigeMultiplier);
 
       totalRent += rent;
       propertiesCollected++;
@@ -466,7 +459,8 @@ export function sellPosition(userId: number, itemId: string): MarketSellResult {
     if (rows.length === 0) throw new Error('No holdings found for this item');
 
     const item = db.prepare('SELECT * FROM market_items WHERE id = ?').get(itemId) as MarketItemRow;
-    const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed);
+    const period = getPeriodForCategory(item.category);
+    const priceCents = getCurrentPrice(item.base_price_cents, item.volatility, item.seed, undefined, period);
 
     let totalQuantity = 0;
     let totalOrigCost = 0;

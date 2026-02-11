@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import { CardData, Suit, Rank, BaccaratBetType, BaccaratResult } from '../../../shared/types.ts';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -93,11 +94,14 @@ export function dealBaccarat(userId: number, betCents: number, betType: Baccarat
   let payoutCents = 0;
   if (betType === winner) {
     if (winner === 'player') payoutCents = betCents * 2;
-    else if (winner === 'banker') payoutCents = Math.floor(betCents * 1.95); // 5% commission
-    else payoutCents = betCents * 9; // Tie pays 8:1
+    else if (winner === 'banker') payoutCents = Math.floor(betCents * 1.95);
+    else payoutCents = betCents * 9;
   } else if (winner === 'tie') {
-    // Tie pushes player/banker bets — return the bet
     payoutCents = betCents;
+  }
+  // Apply prestige bonus
+  if (payoutCents > betCents) {
+    payoutCents = applyPrestigeBonus(userId, payoutCents, betCents);
   }
 
   const run = db.transaction(() => {

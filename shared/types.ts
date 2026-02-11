@@ -18,6 +18,8 @@ export interface AuthResponse {
 export interface WalletResponse {
   balance_cents: number;
   username: string;
+  prestige_level?: number;
+  prestige_multiplier?: number;
 }
 
 // ============ Common ============
@@ -331,7 +333,7 @@ export interface AchievementsResponse {
 }
 
 // ============ Market ============
-export type MarketCategory = 'collectible' | 'stock' | 'property' | 'vehicle';
+export type MarketCategory = 'collectible' | 'stock' | 'property' | 'vehicle' | 'crypto';
 export type MarketRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
 export interface MarketItemWithPrice {
@@ -589,6 +591,93 @@ export interface StatsDeepDiveResponse {
     rent_earned_cents: number;
   };
   profit_loss_timeline: ProfitLossPoint[];
+}
+
+// ============ Business Empire ============
+export interface BusinessType {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  base_cost_cents: number;
+  base_income_cents_per_hour: number;
+  max_level: number;
+  upgrade_cost_multiplier: number;
+}
+
+export interface OwnedBusiness {
+  id: number;
+  business_type_id: string;
+  name: string;
+  description: string;
+  icon: string;
+  level: number;
+  max_level: number;
+  income_cents_per_hour: number;
+  next_upgrade_cost_cents: number | null;
+  last_collected_at: number;
+  pending_income_cents: number;
+}
+
+export interface BusinessEmpireState {
+  available_businesses: BusinessType[];
+  owned_businesses: OwnedBusiness[];
+  total_income_per_hour_cents: number;
+  total_pending_income_cents: number;
+}
+
+export interface BusinessBuyRequest {
+  business_type_id: string;
+}
+
+export interface BusinessBuyResult {
+  business: OwnedBusiness;
+  new_balance_cents: number;
+}
+
+export interface BusinessUpgradeRequest {
+  business_id: number;
+}
+
+export interface BusinessUpgradeResult {
+  business: OwnedBusiness;
+  new_balance_cents: number;
+}
+
+export interface BusinessCollectResult {
+  total_collected_cents: number;
+  businesses_collected: number;
+  new_balance_cents: number;
+}
+
+// ============ Prestige System ============
+export interface PrestigeLevel {
+  level: number;
+  net_worth_required_cents: number;
+  multiplier: number;
+}
+
+export const PRESTIGE_LEVELS: PrestigeLevel[] = [
+  { level: 1, net_worth_required_cents: 100_000_00, multiplier: 1.1 },
+  { level: 2, net_worth_required_cents: 500_000_00, multiplier: 1.2 },
+  { level: 3, net_worth_required_cents: 2_500_000_00, multiplier: 1.35 },
+  { level: 4, net_worth_required_cents: 10_000_000_00, multiplier: 1.5 },
+  { level: 5, net_worth_required_cents: 50_000_000_00, multiplier: 1.75 },
+];
+
+export interface PrestigeStatus {
+  current_level: number;
+  current_multiplier: number;
+  next_level: PrestigeLevel | null;
+  can_prestige: boolean;
+  total_prestiges: number;
+  current_net_worth_cents: number;
+}
+
+export interface PrestigeExecuteResult {
+  new_level: number;
+  new_multiplier: number;
+  new_balance_cents: number;
 }
 
 // ============ Error ============

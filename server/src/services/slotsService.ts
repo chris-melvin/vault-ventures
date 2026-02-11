@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import { SlotSymbol, SLOT_SYMBOLS, SLOT_PAYOUTS, SlotsSpinResult } from '../../../shared/types.ts';
 import { REEL_STRIPS, REEL_COUNT, REEL_LENGTH, VISIBLE_ROWS, getVisibleSymbols } from '../../../shared/slots.ts';
 
@@ -77,7 +78,8 @@ export function spinSlots(userId: number, amountCents: number): SlotsSpinResult 
   const isNearMiss = paylines.length === 0 && detectNearMiss(allSymbols);
 
   const totalMultiplier = paylines.reduce((sum, p) => sum + p.multiplier, 0);
-  const payoutCents = amountCents * totalMultiplier;
+  const rawPayout = amountCents * totalMultiplier;
+  const payoutCents = rawPayout > 0 ? applyPrestigeBonus(userId, rawPayout, amountCents) : 0;
 
   const run = db.transaction(() => {
     db.prepare('UPDATE users SET balance_cents = balance_cents - ? WHERE id = ?')

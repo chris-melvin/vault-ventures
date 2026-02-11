@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import {
   PinballSymbol,
   PINBALL_REEL_STRIPS,
@@ -134,7 +135,7 @@ export function spinPinball(userId: number, amountCents: number, betLevel: numbe
     basePayout += bonusPayout;
   }
 
-  const totalPayout = basePayout;
+  const totalPayout = basePayout > 0 ? applyPrestigeBonus(userId, basePayout, totalBet) : 0;
 
   const run = db.transaction(() => {
     db.prepare('UPDATE users SET balance_cents = balance_cents - ? WHERE id = ?')

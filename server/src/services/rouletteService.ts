@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import {
   ROULETTE_PAYOUTS, ROULETTE_RED_NUMBERS,
   type RouletteBet, type RouletteSpinResult,
@@ -31,6 +32,11 @@ export function spinRoulette(userId: number, bets: RouletteBet[]): RouletteSpinR
       payoutCents += bet.amount_cents + bet.amount_cents * ROULETTE_PAYOUTS[bet.type];
     }
   });
+
+  // Apply prestige bonus
+  if (payoutCents > totalBetCents) {
+    payoutCents = applyPrestigeBonus(userId, payoutCents, totalBetCents);
+  }
 
   const run = db.transaction(() => {
     db.prepare('UPDATE users SET balance_cents = balance_cents - ? WHERE id = ?')

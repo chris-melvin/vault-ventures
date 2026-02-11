@@ -113,23 +113,22 @@ export default function MarketItemDetail({ itemId, onClose, onBuy }: Props) {
               <input
                 type="number"
                 min={1}
-                max={99999}
                 value={quantity}
                 onChange={(e) => {
                   const v = parseInt(e.target.value);
-                  if (!isNaN(v) && v >= 1 && v <= 99999) setQuantity(v);
+                  if (!isNaN(v) && v >= 1) setQuantity(v);
                 }}
-                className="w-20 h-8 rounded-lg bg-casino-dark border border-white/10 text-white text-center text-sm font-bold focus:outline-none focus:border-casino-gold/40"
+                className="w-24 h-8 rounded-lg bg-casino-dark border border-white/10 text-white text-center text-sm font-bold focus:outline-none focus:border-casino-gold/40"
               />
               <button
-                onClick={() => setQuantity(Math.min(99999, quantity + 1))}
+                onClick={() => setQuantity(quantity + 1)}
                 className="w-8 h-8 rounded-lg bg-casino-card border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors cursor-pointer flex items-center justify-center font-bold"
               >
                 +
               </button>
             </div>
             <div className="flex gap-1 ml-auto">
-              {[10, 100, 1000].map(q => (
+              {[10, 100, 1000, 10000].map(q => (
                 <button
                   key={q}
                   onClick={() => setQuantity(q)}

@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import {
   CardData, Suit, Rank,
   UTHPhase, UTHAction, UTHState, UTHResult, UTHBetBreakdown,
@@ -322,7 +323,13 @@ function resolveShowdown(sessionId: string, session: UTHSession): UTHResult {
     // else trips_cents is lost
   }
 
-  const totalPayout = antePayout + blindPayout + playPayout + tripsPayout;
+  let totalPayout = antePayout + blindPayout + playPayout + tripsPayout;
+
+  // Apply prestige bonus
+  const totalWageredUTH = ante_cents + blind_cents + trips_cents + play_cents;
+  if (totalPayout > totalWageredUTH) {
+    totalPayout = applyPrestigeBonus(session.userId, totalPayout, totalWageredUTH);
+  }
 
   if (totalPayout > 0) {
     addBalance(session.userId, totalPayout, outcome === 'push' ? 'PUSH' : 'WIN');

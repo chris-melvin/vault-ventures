@@ -1,4 +1,5 @@
 import db from '../db/database.js';
+import { getMultiplier } from './prestigeService.js';
 import type { BankAccountState, BankTransaction } from '../../../shared/types.ts';
 
 const INTEREST_RATE_PER_12H = 0.001; // 0.1% per 12 hours
@@ -30,8 +31,11 @@ function calculatePendingInterest(balance: number, lastInterestAt: number): numb
 
 function applyAccruedInterest(userId: number): number {
   const account = getOrCreateAccount(userId);
-  const interest = calculatePendingInterest(account.balance_cents, account.last_interest_at);
+  let interest = calculatePendingInterest(account.balance_cents, account.last_interest_at);
   if (interest <= 0) return 0;
+  // Apply prestige multiplier to interest
+  const multiplier = getMultiplier(userId);
+  if (multiplier > 1.0) interest = Math.floor(interest * multiplier);
 
   const now = Math.floor(Date.now() / 1000);
   const newBalance = account.balance_cents + interest;

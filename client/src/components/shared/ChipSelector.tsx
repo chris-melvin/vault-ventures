@@ -1,5 +1,5 @@
 import { useGameStore } from '../../stores/useGameStore';
-import { CHIP_COLORS, formatChipLabel, getVisibleChips } from '../../lib/constants';
+import { getChipColor, formatChipLabel, getVisibleChips } from '../../lib/constants';
 
 export default function ChipSelector() {
   const { selectedChipValue, setSelectedChip, balance_cents, chipStack } = useGameStore();
@@ -9,7 +9,7 @@ export default function ChipSelector() {
   return (
     <div className="flex items-center gap-2 flex-wrap justify-center">
       {visibleChips.map((value) => {
-        const colors = CHIP_COLORS[value];
+        const colors = getChipColor(value);
         const isSelected = selectedChipValue === value;
         const cantAfford = currentTotal + value > balance_cents;
 
@@ -26,7 +26,7 @@ export default function ChipSelector() {
               opacity: cantAfford ? 0.3 : 1,
               transform: isSelected ? 'scale(1.15)' : 'scale(1)',
               boxShadow: isSelected ? '0 0 15px rgba(212,175,55,0.5)' : 'none',
-              fontSize: value >= 50000 ? '0.65rem' : '0.875rem',
+              fontSize: value >= 10000 ? '0.6rem' : '0.875rem',
             }}
           >
             {formatChipLabel(value)}

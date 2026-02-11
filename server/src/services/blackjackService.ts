@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import { CardData, Suit, Rank, BlackjackState, BlackjackAction, BlackjackHandState, AchievementUnlock } from '../../../shared/types.ts';
 
 const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
@@ -198,10 +199,15 @@ function resolveGame(session: Session): void {
   // Add insurance payout if any
   totalPayoutCents += session.insurancePayoutCents;
 
+  // Apply prestige bonus to profit portion
+  const totalWageredForPrestige = session.hands.reduce((sum, h) => sum + h.betCents, 0) + session.insuranceBetCents;
+  if (totalPayoutCents > 0) {
+    totalPayoutCents = applyPrestigeBonus(session.userId, totalPayoutCents, totalWageredForPrestige);
+  }
+
   if (totalPayoutCents > 0) {
     db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?')
       .run(totalPayoutCents, session.userId);
-    // Log transaction
     const netWin = totalPayoutCents - session.hands.reduce((sum, h) => sum + h.betCents, 0);
     if (netWin > 0) {
       db.prepare('INSERT INTO transactions (user_id, amount_cents, type, game_type) VALUES (?, ?, ?, ?)')
@@ -376,12 +382,14 @@ export function dealBlackjack(userId: number, betCents: number, numHands: number
     let totalPayout = 0;
     for (const hand of hands) {
       if (dealerVal === 21) {
-        // Push
         totalPayout += hand.betCents;
       } else {
-        // Blackjack 3:2 payout
         totalPayout += Math.floor(hand.betCents * 2.5);
       }
+    }
+    // Apply prestige bonus
+    if (totalPayout > 0) {
+      totalPayout = applyPrestigeBonus(userId, totalPayout, totalBet);
     }
     if (totalPayout > 0) {
       db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?')
@@ -585,13 +593,16 @@ export function playerInsurance(sessionId: string, userId: number, accept: boole
 
       // Resolve the game
       session.gamePhase = 'resolved';
-      // Return insurance payout + handle main bet
       let totalPayout = session.insurancePayoutCents;
       if (playerVal === 21) {
-        // Push on main bet
         totalPayout += session.hands[0].betCents;
       }
-      // else dealer wins main bet
+
+      // Apply prestige bonus
+      const insWagered = session.hands[0].betCents + insuranceCost;
+      if (totalPayout > 0) {
+        totalPayout = applyPrestigeBonus(userId, totalPayout, insWagered);
+      }
 
       if (totalPayout > 0) {
         db.prepare('UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?')

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { CHIP_COLORS, formatCents } from '../../lib/constants';
+import { getChipColor, formatCents } from '../../lib/constants';
 
 interface ChipStackProps {
   chips: number[];
@@ -19,7 +19,7 @@ export default function ChipStack({ chips, showTotal = true }: ChipStackProps) {
       <div className="relative" style={{ height: visibleChips.length * 3 + 28 }}>
         <AnimatePresence>
           {visibleChips.map((value, i) => {
-            const colors = CHIP_COLORS[value];
+            const colors = getChipColor(value);
             return (
               <motion.div
                 key={`${value}-${i}-${chips.length}`}

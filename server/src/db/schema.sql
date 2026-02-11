@@ -99,12 +99,13 @@ CREATE TABLE IF NOT EXISTS market_items (
   name TEXT NOT NULL,
   description TEXT NOT NULL,
   icon TEXT NOT NULL,
-  category TEXT NOT NULL CHECK(category IN ('collectible','stock','property','vehicle')),
+  category TEXT NOT NULL CHECK(category IN ('collectible','stock','property','vehicle','crypto')),
   base_price_cents INTEGER NOT NULL,
   volatility REAL NOT NULL DEFAULT 0.2,
   rarity TEXT NOT NULL DEFAULT 'common' CHECK(rarity IN ('common','uncommon','rare','epic','legendary')),
   available INTEGER NOT NULL DEFAULT 1,
-  seed INTEGER NOT NULL
+  seed INTEGER NOT NULL,
+  rent_rate REAL NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS user_inventory (
@@ -114,6 +115,7 @@ CREATE TABLE IF NOT EXISTS user_inventory (
   quantity INTEGER NOT NULL DEFAULT 1,
   purchased_price_cents INTEGER NOT NULL,
   purchased_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  last_rent_at INTEGER NOT NULL DEFAULT (unixepoch()),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (item_id) REFERENCES market_items(id)
 );
@@ -135,8 +137,50 @@ CREATE TABLE IF NOT EXISTS meta_transactions (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   amount_cents INTEGER NOT NULL,
-  type TEXT NOT NULL CHECK(type IN ('BANK_DEPOSIT','BANK_WITHDRAW','BANK_INTEREST','MARKET_BUY','MARKET_SELL','ACHIEVEMENT_REWARD','RENT')),
+  type TEXT NOT NULL CHECK(type IN ('BANK_DEPOSIT','BANK_WITHDRAW','BANK_INTEREST','MARKET_BUY','MARKET_SELL','ACHIEVEMENT_REWARD','RENT','BUSINESS_PURCHASE','BUSINESS_INCOME','PRESTIGE')),
   description TEXT,
+  timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+-- ============ Business Empire ============
+CREATE TABLE IF NOT EXISTS business_types (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL,
+  icon TEXT NOT NULL,
+  base_cost_cents INTEGER NOT NULL,
+  base_income_cents_per_hour INTEGER NOT NULL,
+  max_level INTEGER NOT NULL DEFAULT 5,
+  upgrade_cost_multiplier REAL NOT NULL DEFAULT 2.0
+);
+
+CREATE TABLE IF NOT EXISTS user_businesses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  business_type_id TEXT NOT NULL,
+  level INTEGER NOT NULL DEFAULT 1,
+  last_collected_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  UNIQUE(user_id, business_type_id),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (business_type_id) REFERENCES business_types(id)
+);
+
+-- ============ Prestige System ============
+CREATE TABLE IF NOT EXISTS user_prestige (
+  user_id INTEGER PRIMARY KEY,
+  level INTEGER NOT NULL DEFAULT 0,
+  multiplier REAL NOT NULL DEFAULT 1.0,
+  total_prestiges INTEGER NOT NULL DEFAULT 0,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE TABLE IF NOT EXISTS prestige_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  from_level INTEGER NOT NULL,
+  to_level INTEGER NOT NULL,
+  net_worth_at_prestige INTEGER NOT NULL,
   timestamp INTEGER NOT NULL DEFAULT (unixepoch()),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );

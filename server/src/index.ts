@@ -18,8 +18,12 @@ import sicboRoutes from './routes/sicbo.js';
 import rouletteRoutes from './routes/roulette.js';
 import networthRoutes from './routes/networth.js';
 import statsRoutes from './routes/stats.js';
+import businessRoutes from './routes/business.js';
+import prestigeRoutes from './routes/prestige.js';
 import { seedAchievements } from './services/achievementService.js';
 import { seedMarketItems } from './services/marketService.js';
+import { initPrestigeTables } from './services/prestigeService.js';
+import { initBusinessTables } from './services/businessService.js';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -28,6 +32,8 @@ app.use(cors());
 app.use(express.json());
 
 // Seed data
+initPrestigeTables();
+initBusinessTables();
 seedAchievements();
 seedMarketItems();
 
@@ -48,6 +54,8 @@ app.use('/api/sicbo', sicboRoutes);
 app.use('/api/roulette', rouletteRoutes);
 app.use('/api/networth', networthRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/business', businessRoutes);
+app.use('/api/prestige', prestigeRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });

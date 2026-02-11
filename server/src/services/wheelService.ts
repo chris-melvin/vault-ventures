@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult, hashToNumber } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import { WHEEL_SEGMENTS, WHEEL_SEGMENT_COUNT, getSymbolConfig, type WheelSymbol, type WheelSpinResult } from '../../../shared/types.ts';
 
 export function spinWheel(userId: number, bets: Partial<Record<WheelSymbol, number>>): WheelSpinResult {
@@ -16,7 +17,8 @@ export function spinWheel(userId: number, bets: Partial<Record<WheelSymbol, numb
   const winningBet = bets[winningSymbol] || 0;
   const config = getSymbolConfig(winningSymbol);
   // Payout = bet returned + N × bet
-  const payoutCents = winningBet > 0 ? winningBet + winningBet * config.payout : 0;
+  const rawPayout = winningBet > 0 ? winningBet + winningBet * config.payout : 0;
+  const payoutCents = rawPayout > 0 ? applyPrestigeBonus(userId, rawPayout, winningBet) : 0;
 
   const run = db.transaction(() => {
     // Deduct total of all bets

@@ -1,5 +1,6 @@
 import db from '../db/database.js';
 import { getUserInventory } from './marketService.js';
+import { getBusinessValue } from './businessService.js';
 import type { NetWorthResponse, PortfolioBreakdownItem, MarketCategory } from '../../../shared/types.ts';
 
 export function getNetWorth(userId: number): NetWorthResponse {
@@ -43,7 +44,8 @@ export function getNetWorth(userId: number): NetWorthResponse {
     };
   });
 
-  const totalNetWorthCents = walletCents + bankCents + pendingInterestCents + portfolioValueCents + pendingRentCents;
+  const businessValueCents = getBusinessValue(userId);
+  const totalNetWorthCents = walletCents + bankCents + pendingInterestCents + portfolioValueCents + pendingRentCents + businessValueCents;
 
   return {
     wallet_cents: walletCents,

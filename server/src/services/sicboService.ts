@@ -1,6 +1,7 @@
 import db from '../db/database.js';
 import { generateSeed, hashSeed, hmacResult } from './rng.js';
 import { updateStats, checkAchievements } from './achievementService.js';
+import { applyPrestigeBonus } from './prestigeService.js';
 import { SIC_BO_PAYOUTS, type SicBoBetType, type SicBoRollResult } from '../../../shared/types.ts';
 
 function diceFromHash(hash: string): [number, number, number] {
@@ -78,6 +79,11 @@ export function rollSicBo(userId: number, bets: Partial<Record<SicBoBetType, num
     } else {
       payoutCents += amount + amount * SIC_BO_PAYOUTS[betType];
     }
+  }
+
+  // Apply prestige bonus
+  if (payoutCents > totalBetCents) {
+    payoutCents = applyPrestigeBonus(userId, payoutCents, totalBetCents);
   }
 
   const run = db.transaction(() => {
